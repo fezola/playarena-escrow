@@ -14,7 +14,267 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      match_players: {
+        Row: {
+          deposit_tx_hash: string | null
+          has_deposited: boolean
+          id: string
+          joined_at: string
+          match_id: string
+          player_id: string
+          player_symbol: string | null
+          score: number
+        }
+        Insert: {
+          deposit_tx_hash?: string | null
+          has_deposited?: boolean
+          id?: string
+          joined_at?: string
+          match_id: string
+          player_id: string
+          player_symbol?: string | null
+          score?: number
+        }
+        Update: {
+          deposit_tx_hash?: string | null
+          has_deposited?: boolean
+          id?: string
+          joined_at?: string
+          match_id?: string
+          player_id?: string
+          player_symbol?: string | null
+          score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_players_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_players_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      matches: {
+        Row: {
+          contract_match_id: string | null
+          created_at: string
+          creator_id: string
+          currency: string
+          current_round: number
+          ended_at: string | null
+          game_state: Json | null
+          game_type: Database["public"]["Enums"]["game_type"]
+          id: string
+          players_required: number
+          rounds: number
+          stake_amount: number
+          started_at: string | null
+          state: Database["public"]["Enums"]["match_state"]
+          updated_at: string
+          winner_id: string | null
+        }
+        Insert: {
+          contract_match_id?: string | null
+          created_at?: string
+          creator_id: string
+          currency?: string
+          current_round?: number
+          ended_at?: string | null
+          game_state?: Json | null
+          game_type: Database["public"]["Enums"]["game_type"]
+          id?: string
+          players_required?: number
+          rounds?: number
+          stake_amount: number
+          started_at?: string | null
+          state?: Database["public"]["Enums"]["match_state"]
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Update: {
+          contract_match_id?: string | null
+          created_at?: string
+          creator_id?: string
+          currency?: string
+          current_round?: number
+          ended_at?: string | null
+          game_state?: Json | null
+          game_type?: Database["public"]["Enums"]["game_type"]
+          id?: string
+          players_required?: number
+          rounds?: number
+          stake_amount?: number
+          started_at?: string | null
+          state?: Database["public"]["Enums"]["match_state"]
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matches_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      moves: {
+        Row: {
+          created_at: string
+          id: string
+          match_id: string
+          move_data: Json
+          move_number: number
+          player_id: string
+          round_number: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          match_id: string
+          move_data: Json
+          move_number: number
+          player_id: string
+          round_number: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          match_id?: string
+          move_data?: Json
+          move_number?: number
+          player_id?: string
+          round_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moves_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moves_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          current_streak: number
+          display_name: string | null
+          id: string
+          total_earnings: number
+          total_losses: number
+          total_wins: number
+          updated_at: string
+          user_id: string
+          wallet_address: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          current_streak?: number
+          display_name?: string | null
+          id?: string
+          total_earnings?: number
+          total_losses?: number
+          total_wins?: number
+          updated_at?: string
+          user_id: string
+          wallet_address?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          current_streak?: number
+          display_name?: string | null
+          id?: string
+          total_earnings?: number
+          total_losses?: number
+          total_wins?: number
+          updated_at?: string
+          user_id?: string
+          wallet_address?: string | null
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          confirmed_at: string | null
+          created_at: string
+          currency: string
+          id: string
+          match_id: string | null
+          status: string
+          tx_hash: string | null
+          tx_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          confirmed_at?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          match_id?: string | null
+          status?: string
+          tx_hash?: string | null
+          tx_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          confirmed_at?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          match_id?: string | null
+          status?: string
+          tx_hash?: string | null
+          tx_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +283,13 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      game_type: "tic-tac-toe" | "chess" | "scrabble"
+      match_state:
+        | "waiting"
+        | "depositing"
+        | "active"
+        | "complete"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +416,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      game_type: ["tic-tac-toe", "chess", "scrabble"],
+      match_state: ["waiting", "depositing", "active", "complete", "cancelled"],
+    },
   },
 } as const
