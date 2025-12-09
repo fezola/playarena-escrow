@@ -38,7 +38,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
+  const generateWalletForUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    try {
+      const response = await supabase.functions.invoke('generate-wallet', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      
+      if (response.error) {
+        console.error('Error generating wallet:', response.error);
+      } else {
+        console.log('Wallet generated:', response.data);
+      }
+    } catch (error) {
+      console.error('Failed to generate wallet:', error);
+    }
+  };
+
+  const fetchProfile = async (userId: string, isNewUser = false) => {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -46,7 +67,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .single();
     
     if (!error && data) {
-      setProfile(data as Profile);
+      // If no wallet address, generate one
+      if (!data.wallet_address) {
+        await generateWalletForUser();
+        // Refetch profile after wallet generation
+        const { data: updatedData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
+        if (updatedData) {
+          setProfile(updatedData as Profile);
+        }
+      } else {
+        setProfile(data as Profile);
+      }
     }
   };
 
