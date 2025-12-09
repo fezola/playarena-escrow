@@ -15,6 +15,7 @@ import Friends from "./pages/Friends";
 import Auth from "./pages/Auth";
 import MatchHistory from "./pages/MatchHistory";
 import Transactions from "./pages/Transactions";
+import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route path="/history" element={<MatchHistory />} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/install" element={<Install />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
