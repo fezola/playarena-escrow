@@ -11,6 +11,7 @@ import CreateMatch from "./pages/CreateMatch";
 import MatchPage from "./pages/MatchPage";
 import Leaderboard from "./pages/Leaderboard";
 import Profile from "./pages/Profile";
+import Friends from "./pages/Friends";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/create" element={<CreateMatch />} />
             <Route path="/match/:id" element={<MatchPage />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/friends" element={<Friends />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
