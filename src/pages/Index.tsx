@@ -1,29 +1,19 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { MobileLayout } from '@/components/MobileLayout';
 import { useAuth } from '@/hooks/useAuth';
+import { useMatches, MatchWithPlayers } from '@/hooks/useMatches';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { GameType, gameTypeLabels, gameTypeIcons } from '@/types/game';
 import { 
-  Zap, ChevronRight, Trophy, Users, Coins, Flame, 
-  Plus, Bell, Wallet, Swords, Clock, Share2 
+  ChevronRight, Trophy, Users, Coins, Flame, 
+  Plus, Bell, Wallet, Swords, Loader2
 } from 'lucide-react';
-
-// Mock live matches for demo
-const liveMatches = [
-  { id: '1', game: 'chess' as GameType, players: ['0xAbc...', '0xDef...'], stake: 50, status: 'live' },
-  { id: '2', game: 'tic-tac-toe' as GameType, players: ['0x123...'], stake: 10, status: 'waiting' },
-];
-
-// Mock friends activity
-const friendsActivity = [
-  { id: '1', name: 'Alex', action: 'won', game: 'Chess', amount: 100, time: '5m ago', avatar: null },
-  { id: '2', name: 'Sam', action: 'started', game: 'Scrabble', amount: 25, time: '12m ago', avatar: null },
-  { id: '3', name: 'Jordan', action: 'challenged you', game: 'Tic Tac Toe', amount: 15, time: '1h ago', avatar: null },
-];
 
 const quickGames: { type: GameType; color: string }[] = [
   { type: 'tic-tac-toe', color: 'from-blue-500 to-cyan-400' },
@@ -32,8 +22,28 @@ const quickGames: { type: GameType; color: string }[] = [
 ];
 
 export default function Index() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
+  const { matches, loading: matchesLoading, joinMatch } = useMatches();
   const navigate = useNavigate();
+
+  const handleJoinMatch = async (match: MatchWithPlayers) => {
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    
+    const success = await joinMatch(match.id);
+    if (success) {
+      navigate(`/match/${match.id}`);
+    }
+  };
+
+  const handleViewMatch = (matchId: string) => {
+    navigate(`/match/${matchId}`);
+  };
+
+  const waitingMatches = matches.filter(m => m.state === 'waiting');
+  const activeMatches = matches.filter(m => m.state === 'active');
 
   return (
     <MobileLayout>
@@ -62,12 +72,11 @@ export default function Index() {
               <>
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
                 </Button>
                 <Link to="/profile">
                   <Button variant="outline" size="sm" className="gap-1">
                     <Wallet className="h-4 w-4" />
-                    <span className="font-display">${profile?.wallet_balance || 0}</span>
+                    <span className="font-display">${profile?.wallet_balance?.toFixed(2) || '0.00'}</span>
                   </Button>
                 </Link>
               </>
@@ -87,7 +96,7 @@ export default function Index() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
           >
-            <Link to="/create">
+            <Link to={user ? "/create" : "/auth"}>
               <Card className="border-primary/30 bg-gradient-to-br from-primary/10 to-transparent active:scale-[0.98] transition-transform">
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
@@ -106,7 +115,7 @@ export default function Index() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
           >
-            <Card className="border-accent/30 bg-gradient-to-br from-accent/10 to-transparent active:scale-[0.98] transition-transform">
+            <Card className="border-accent/30 bg-gradient-to-br from-accent/10 to-transparent active:scale-[0.98] transition-transform cursor-pointer">
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
                   <Swords className="h-5 w-5 text-accent-foreground" />
@@ -138,7 +147,7 @@ export default function Index() {
                 transition={{ delay: index * 0.1 }}
                 className="flex-1"
               >
-                <Link to={`/play/${game.type}`}>
+                <Link to={user ? `/create` : '/auth'}>
                   <Card className="overflow-hidden border-border/50 active:scale-95 transition-transform">
                     <div className={`h-16 bg-gradient-to-br ${game.color} flex items-center justify-center`}>
                       <span className="text-3xl">{gameTypeIcons[game.type]}</span>
@@ -155,6 +164,78 @@ export default function Index() {
           </div>
         </section>
 
+        {/* Open Matches (Waiting for players) */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-display font-bold flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              Open Matches
+            </h2>
+            <Badge variant="outline">
+              {waitingMatches.length} Available
+            </Badge>
+          </div>
+
+          {matchesLoading ? (
+            <div className="space-y-2">
+              {[1, 2].map(i => (
+                <Card key={i} className="border-border/50">
+                  <CardContent className="p-3">
+                    <Skeleton className="h-12 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : waitingMatches.length === 0 ? (
+            <Card className="border-border/50 border-dashed">
+              <CardContent className="p-6 text-center">
+                <p className="text-muted-foreground text-sm">No open matches</p>
+                <Link to={user ? "/create" : "/auth"}>
+                  <Button variant="outline" size="sm" className="mt-2">
+                    Create one
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {waitingMatches.map((match, index) => (
+                <motion.div
+                  key={match.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card 
+                    className="border-border/50 active:scale-[0.98] transition-transform cursor-pointer"
+                    onClick={() => handleJoinMatch(match)}
+                  >
+                    <CardContent className="p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-card flex items-center justify-center text-xl">
+                          {gameTypeIcons[match.game_type]}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{gameTypeLabels[match.game_type]}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>by {(match.creator as any)?.display_name || 'Player'}</span>
+                            <span>•</span>
+                            <span className="text-success font-medium">${match.stake_amount}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <Button size="sm" variant="neon">
+                        Join
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </section>
+
         {/* Live Matches */}
         <section>
           <div className="flex items-center justify-between mb-3">
@@ -163,110 +244,58 @@ export default function Index() {
               Live Now
             </h2>
             <Badge variant="outline" className="text-destructive border-destructive/30">
-              {liveMatches.filter(m => m.status === 'live').length} Active
+              {activeMatches.length} Active
             </Badge>
           </div>
 
-          <div className="space-y-2">
-            {liveMatches.map((match, index) => (
-              <motion.div
-                key={match.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Card className="border-border/50 active:scale-[0.98] transition-transform">
-                  <CardContent className="p-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-card flex items-center justify-center text-xl">
-                        {gameTypeIcons[match.game]}
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{gameTypeLabels[match.game]}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Users className="h-3 w-3" />
-                          <span>{match.players.length}/2 players</span>
-                          <span>•</span>
-                          <span className="text-success">${match.stake}</span>
+          {activeMatches.length === 0 ? (
+            <Card className="border-border/50 border-dashed">
+              <CardContent className="p-6 text-center">
+                <p className="text-muted-foreground text-sm">No live matches</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {activeMatches.map((match, index) => (
+                <motion.div
+                  key={match.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card 
+                    className="border-border/50 active:scale-[0.98] transition-transform cursor-pointer"
+                    onClick={() => handleViewMatch(match.id)}
+                  >
+                    <CardContent className="p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-card flex items-center justify-center text-xl">
+                          {gameTypeIcons[match.game_type]}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{gameTypeLabels[match.game_type]}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Users className="h-3 w-3" />
+                            <span>{match.match_players?.length || 0}/2 players</span>
+                            <span>•</span>
+                            <span className="text-success">${match.stake_amount}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {match.status === 'live' ? (
+                      
+                      <div className="flex items-center gap-2">
                         <Badge className="bg-destructive/20 text-destructive border-0">
                           <span className="w-1.5 h-1.5 rounded-full bg-destructive mr-1 animate-pulse" />
                           Live
                         </Badge>
-                      ) : (
-                        <Badge variant="outline">Join</Badge>
-                      )}
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </section>
-
-        {/* Friends Activity */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-display font-bold flex items-center gap-2">
-              <Users className="h-4 w-4 text-primary" />
-              Activity
-            </h2>
-          </div>
-
-          <div className="space-y-2">
-            {friendsActivity.map((activity, index) => (
-              <motion.div
-                key={activity.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 + index * 0.1 }}
-              >
-                <Card className="border-border/50">
-                  <CardContent className="p-3 flex items-center gap-3">
-                    <Avatar className="h-9 w-9">
-                      <AvatarFallback className="bg-muted text-sm">
-                        {activity.name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm">
-                        <span className="font-medium">{activity.name}</span>{' '}
-                        <span className={activity.action === 'won' ? 'text-success' : 'text-muted-foreground'}>
-                          {activity.action}
-                        </span>{' '}
-                        {activity.action === 'won' && (
-                          <span className="font-medium text-success">${activity.amount}</span>
-                        )}
-                        {activity.action === 'started' && (
-                          <span className="text-muted-foreground">in {activity.game}</span>
-                        )}
-                        {activity.action === 'challenged you' && (
-                          <span className="text-primary">{activity.game} - ${activity.amount}</span>
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {activity.time}
-                      </p>
-                    </div>
-
-                    {activity.action === 'challenged you' && (
-                      <Button size="sm" variant="neon">
-                        Accept
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Stats Row */}
