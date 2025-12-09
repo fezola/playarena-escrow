@@ -4,15 +4,17 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { MobileLayout } from '@/components/MobileLayout';
 import { TicTacToeBoard } from '@/components/games/TicTacToeBoard';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
+import { RoundScoreTracker } from '@/components/RoundScoreTracker';
+import { GameInstructions, ResponsibleGamingBanner } from '@/components/GameInstructions';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 import { Clock, DollarSign, Trophy, RefreshCw, ArrowLeft, Copy, Share2, Loader2 } from 'lucide-react';
+import { TicTacToeState, TicTacToeCell } from '@/types/game';
 
 type Match = Database['public']['Tables']['matches']['Row'];
 type MatchPlayer = Database['public']['Tables']['match_players']['Row'];
@@ -23,7 +25,9 @@ interface MatchWithPlayers extends Match {
   })[];
 }
 
-import { TicTacToeState, TicTacToeCell } from '@/types/game';
+interface ExtendedGameState extends TicTacToeState {
+  roundScores?: { player1: number; player2: number };
+}
 
 const MatchPage = () => {
   const { id } = useParams();
@@ -34,11 +38,12 @@ const MatchPage = () => {
   const [match, setMatch] = useState<MatchWithPlayers | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-const [gameState, setGameState] = useState<TicTacToeState>({
+  const [gameState, setGameState] = useState<ExtendedGameState>({
     board: Array(9).fill(null) as TicTacToeCell[],
     currentPlayer: 'X',
     winner: null,
     winningLine: null,
+    roundScores: { player1: 0, player2: 0 },
   });
 
   const fetchMatch = async () => {
@@ -72,7 +77,11 @@ const [gameState, setGameState] = useState<TicTacToeState>({
     
     // Load game state
     if (data.game_state) {
-      setGameState(data.game_state as unknown as TicTacToeState);
+      const state = data.game_state as unknown as ExtendedGameState;
+      setGameState({
+        ...state,
+        roundScores: state.roundScores || { player1: 0, player2: 0 },
+      });
     }
 
     // Fetch invite code
@@ -102,7 +111,11 @@ const [gameState, setGameState] = useState<TicTacToeState>({
           const updated = payload.new as Match;
           setMatch(prev => prev ? { ...prev, ...updated } : null);
           if (updated.game_state) {
-            setGameState(updated.game_state as unknown as TicTacToeState);
+            const state = updated.game_state as unknown as ExtendedGameState;
+            setGameState({
+              ...state,
+              roundScores: state.roundScores || { player1: 0, player2: 0 },
+            });
           }
         }
       )
@@ -128,10 +141,17 @@ const [gameState, setGameState] = useState<TicTacToeState>({
   const opponent = match?.match_players?.find(p => p.player_id !== profile?.id);
   const playerSymbol = myPlayer?.player_symbol as 'X' | 'O' || 'X';
   const isMyTurn = gameState.currentPlayer === playerSymbol;
+  const isPlayer1 = playerSymbol === 'X';
+
+  const totalRounds = match?.rounds || 1;
+  const roundsToWin = Math.ceil(totalRounds / 2);
+  const myScore = isPlayer1 ? (gameState.roundScores?.player1 || 0) : (gameState.roundScores?.player2 || 0);
+  const opponentScore = isPlayer1 ? (gameState.roundScores?.player2 || 0) : (gameState.roundScores?.player1 || 0);
+  const matchWinner = myScore >= roundsToWin ? 'player' : opponentScore >= roundsToWin ? 'opponent' : null;
 
   const handleCellClick = async (index: number) => {
-    if (!match || match.state !== 'active' || !isMyTurn || gameState.winner || gameState.board[index]) {
-      if (!isMyTurn && !gameState.winner) {
+    if (!match || match.state !== 'active' || !isMyTurn || gameState.winner || gameState.board[index] || matchWinner) {
+      if (!isMyTurn && !gameState.winner && !matchWinner) {
         toast({
           title: "Not Your Turn",
           description: "Wait for your opponent to move.",
@@ -151,73 +171,89 @@ const [gameState, setGameState] = useState<TicTacToeState>({
       [0, 4, 8], [2, 4, 6],
     ];
 
-    let winner: 'X' | 'O' | 'draw' | null = null;
+    let roundWinner: 'X' | 'O' | 'draw' | null = null;
     let winningLine: number[] | null = null;
     for (const line of lines) {
       const [a, b, c] = line;
       if (newBoard[a] && newBoard[a] === newBoard[b] && newBoard[a] === newBoard[c]) {
-        winner = newBoard[a] as 'X' | 'O';
+        roundWinner = newBoard[a] as 'X' | 'O';
         winningLine = line;
         break;
       }
     }
 
     // Check for draw
-    if (!winner && newBoard.every(cell => cell !== null)) {
-      winner = 'draw';
+    if (!roundWinner && newBoard.every(cell => cell !== null)) {
+      roundWinner = 'draw';
     }
 
-    const newState: TicTacToeState = {
+    // Update round scores if round is over
+    let newRoundScores = { ...gameState.roundScores } as { player1: number; player2: number };
+    if (roundWinner && roundWinner !== 'draw') {
+      if (roundWinner === 'X') {
+        newRoundScores.player1 += 1;
+      } else {
+        newRoundScores.player2 += 1;
+      }
+    }
+
+    const newState: ExtendedGameState = {
       board: newBoard,
       currentPlayer: playerSymbol === 'X' ? 'O' : 'X',
-      winner,
+      winner: roundWinner,
       winningLine,
+      roundScores: newRoundScores,
     };
 
-    const winnerId = winner === playerSymbol ? profile?.id : winner === 'draw' ? null : opponent?.player_id;
+    // Check if match is over (someone won enough rounds)
+    const p1Score = newRoundScores.player1;
+    const p2Score = newRoundScores.player2;
+    const matchComplete = p1Score >= roundsToWin || p2Score >= roundsToWin;
+    const matchWinnerId = matchComplete 
+      ? (p1Score >= roundsToWin 
+          ? match.match_players.find(p => p.player_symbol === 'X')?.player_id 
+          : match.match_players.find(p => p.player_symbol === 'O')?.player_id)
+      : null;
 
     // Update game state in database
     await supabase
       .from('matches')
       .update({
         game_state: newState as unknown as Database['public']['Tables']['matches']['Update']['game_state'],
-        state: winner ? 'complete' : 'active',
-        ended_at: winner ? new Date().toISOString() : null,
-        winner_id: winnerId,
+        state: matchComplete ? 'complete' : 'active',
+        ended_at: matchComplete ? new Date().toISOString() : null,
+        winner_id: matchWinnerId,
+        current_round: match.current_round + (roundWinner ? 1 : 0),
       })
       .eq('id', match.id);
 
     setGameState(newState);
 
-    // Handle escrow release
-    if (winner) {
-      if (winner === 'draw') {
-        // Refund escrow for draws
-        const { data: refundResult } = await supabase.rpc('refund_escrow', {
-          _match_id: match.id
-        });
-        console.log('Escrow refund result:', refundResult);
-        toast({
-          title: "It's a Draw!",
-          description: 'Stakes have been returned to both players.',
-        });
-      } else if (winnerId) {
-        // Release escrow to winner
+    // Handle escrow release only when MATCH is complete (not just round)
+    if (matchComplete) {
+      if (matchWinnerId) {
+        // Release escrow to match winner
         const { data: releaseResult } = await supabase.rpc('release_escrow_to_winner', {
           _match_id: match.id,
-          _winner_id: winnerId
+          _winner_id: matchWinnerId
         });
         console.log('Escrow release result:', releaseResult);
         
-        if (winner === playerSymbol) {
+        if (matchWinnerId === profile?.id) {
           const result = releaseResult as { winner_payout?: number } | null;
           const payout = result?.winner_payout || (Number(match.stake_amount) * 2 * 0.95);
           toast({
-            title: '🎉 You Won!',
+            title: '🎉 You Won the Match!',
             description: `You won $${payout.toFixed(2)}! (5% platform fee applied)`,
           });
         }
       }
+    } else if (roundWinner && roundWinner !== 'draw') {
+      // Just a round win, not match win
+      toast({
+        title: roundWinner === playerSymbol ? 'Round Won!' : 'Round Lost',
+        description: `Score: ${isPlayer1 ? newRoundScores.player1 : newRoundScores.player2} - ${isPlayer1 ? newRoundScores.player2 : newRoundScores.player1}`,
+      });
     }
   };
 
@@ -239,14 +275,15 @@ const [gameState, setGameState] = useState<TicTacToeState>({
     }
   };
 
-  const handlePlayAgain = async () => {
-    if (!match) return;
+  const handleNextRound = async () => {
+    if (!match || matchWinner) return;
 
-    const newState: TicTacToeState = {
+    const newState: ExtendedGameState = {
       board: Array(9).fill(null) as TicTacToeCell[],
       currentPlayer: 'X',
       winner: null,
       winningLine: null,
+      roundScores: gameState.roundScores,
     };
 
     await supabase
@@ -254,7 +291,6 @@ const [gameState, setGameState] = useState<TicTacToeState>({
       .update({
         game_state: newState as unknown as Database['public']['Tables']['matches']['Update']['game_state'],
         state: 'active',
-        current_round: match.current_round + 1,
       })
       .eq('id', match.id);
 
@@ -286,9 +322,12 @@ const [gameState, setGameState] = useState<TicTacToeState>({
             <ArrowLeft className="h-4 w-4 mr-2" />
             Leave
           </Button>
-          <Badge className={match.state === 'active' ? 'bg-success' : match.state === 'waiting' ? 'bg-warning' : 'bg-muted'}>
-            {match.state === 'waiting' ? 'Waiting for opponent' : match.state === 'active' ? 'In Progress' : 'Complete'}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge className={match.state === 'active' ? 'bg-success' : match.state === 'waiting' ? 'bg-warning' : 'bg-muted'}>
+              {match.state === 'waiting' ? 'Waiting' : match.state === 'active' ? 'Playing' : 'Complete'}
+            </Badge>
+            <GameInstructions gameType={match.game_type} />
+          </div>
           <Button variant="ghost" size="sm" onClick={handleCopyLink}>
             <Share2 className="h-4 w-4" />
           </Button>
@@ -296,13 +335,28 @@ const [gameState, setGameState] = useState<TicTacToeState>({
       </header>
 
       <main className="px-4 py-4 space-y-4">
-        {/* Players */}
+        {/* Responsible Gaming Banner */}
+        <ResponsibleGamingBanner />
+
+        {/* Round Score Tracker (for multi-round matches) */}
+        {totalRounds > 1 && (
+          <RoundScoreTracker
+            totalRounds={totalRounds}
+            currentRound={match.current_round}
+            playerScore={myScore}
+            opponentScore={opponentScore}
+            playerName="You"
+            opponentName={(opponent as any)?.profiles?.display_name || 'Opponent'}
+          />
+        )}
+
+        {/* Prize Pool */}
         <Card className="border-border/50">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               {/* Player 1 (You) */}
               <div className="flex items-center gap-2">
-                <Avatar className={`h-10 w-10 border-2 ${isMyTurn && match.state === 'active' ? 'border-primary ring-2 ring-primary/50' : 'border-border'}`}>
+                <Avatar className={`h-10 w-10 border-2 ${isMyTurn && match.state === 'active' && !gameState.winner ? 'border-primary ring-2 ring-primary/50' : 'border-border'}`}>
                   <AvatarFallback className="bg-primary/20 text-primary font-display">
                     {playerSymbol}
                   </AvatarFallback>
@@ -326,7 +380,7 @@ const [gameState, setGameState] = useState<TicTacToeState>({
                     <p className="font-medium text-sm">{(opponent as any).profiles?.display_name || 'Opponent'}</p>
                     <p className="text-xs text-muted-foreground">{opponent.player_symbol}</p>
                   </div>
-                  <Avatar className={`h-10 w-10 border-2 ${!isMyTurn && match.state === 'active' ? 'border-accent ring-2 ring-accent/50' : 'border-border'}`}>
+                  <Avatar className={`h-10 w-10 border-2 ${!isMyTurn && match.state === 'active' && !gameState.winner ? 'border-accent ring-2 ring-accent/50' : 'border-border'}`}>
                     <AvatarFallback className="bg-accent/20 text-accent font-display">
                       {opponent.player_symbol}
                     </AvatarFallback>
@@ -379,7 +433,7 @@ const [gameState, setGameState] = useState<TicTacToeState>({
           <Card className="border-border/50">
             <CardContent className="p-4">
               {/* Turn indicator */}
-              {!gameState.winner && (
+              {!gameState.winner && !matchWinner && (
                 <div className={`text-center mb-4 py-2 rounded-lg ${isMyTurn ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                   <p className="text-sm font-medium">
                     {isMyTurn ? "Your turn!" : "Opponent's turn..."}
@@ -392,12 +446,12 @@ const [gameState, setGameState] = useState<TicTacToeState>({
                   state={gameState}
                   onCellClick={handleCellClick}
                   playerSymbol={playerSymbol}
-                  disabled={!isMyTurn || !!gameState.winner}
+                  disabled={!isMyTurn || !!gameState.winner || !!matchWinner}
                 />
               </div>
 
-              {/* Game over */}
-              {gameState.winner && (
+              {/* Round over (but match continues) */}
+              {gameState.winner && !matchWinner && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -410,19 +464,48 @@ const [gameState, setGameState] = useState<TicTacToeState>({
                       ? 'bg-muted'
                       : 'bg-destructive/10 border border-destructive/30'
                   }`}>
+                    <p className="font-display font-bold text-lg">
+                      {gameState.winner === playerSymbol ? 'Round Won!' : gameState.winner === 'draw' ? "Round Draw!" : 'Round Lost'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {totalRounds > 1 && `First to ${roundsToWin} wins the match`}
+                    </p>
+                  </div>
+                  <Button onClick={handleNextRound} variant="neon" size="lg" className="w-full">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Next Round
+                  </Button>
+                </motion.div>
+              )}
+
+              {/* Match over */}
+              {matchWinner && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-6 text-center"
+                >
+                  <div className={`p-4 rounded-xl mb-4 ${
+                    matchWinner === 'player' 
+                      ? 'bg-success/10 border border-success/30' 
+                      : 'bg-destructive/10 border border-destructive/30'
+                  }`}>
                     <Trophy className={`h-8 w-8 mx-auto mb-2 ${
-                      gameState.winner === playerSymbol ? 'text-success' : 'text-muted-foreground'
+                      matchWinner === 'player' ? 'text-success' : 'text-destructive'
                     }`} />
                     <p className="font-display font-bold text-lg">
-                      {gameState.winner === playerSymbol ? 'You Won!' : gameState.winner === 'draw' ? "It's a Draw!" : 'You Lost'}
+                      {matchWinner === 'player' ? 'You Won the Match!' : 'Match Lost'}
                     </p>
-                    {gameState.winner === playerSymbol && (
-                      <p className="text-success text-sm">+${totalPrize}</p>
+                    {matchWinner === 'player' && (
+                      <p className="text-success text-sm">+${(totalPrize * 0.95).toFixed(2)} (after 5% fee)</p>
                     )}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Final Score: {myScore} - {opponentScore}
+                    </p>
                   </div>
-                  <Button onClick={handlePlayAgain} variant="neon" size="lg" className="w-full">
+                  <Button onClick={() => navigate('/create')} variant="neon" size="lg" className="w-full">
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    Play Again
+                    New Match
                   </Button>
                 </motion.div>
               )}
