@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { MobileLayout } from '@/components/MobileLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useMatches, MatchWithPlayers } from '@/hooks/useMatches';
+import { JoinByCodeDialog } from '@/components/JoinByCodeDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { GameType, gameTypeLabels, gameTypeIcons } from '@/types/game';
 import { 
   ChevronRight, Trophy, Users, Coins, Flame, 
-  Plus, Bell, Wallet, Swords, Loader2
+  Plus, Bell, Wallet, Ticket, Loader2
 } from 'lucide-react';
 
 const quickGames: { type: GameType; color: string }[] = [
@@ -112,17 +113,19 @@ export default function Index() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
           >
-            <Card className="border-accent/30 bg-gradient-to-br from-accent/10 to-transparent active:scale-[0.98] transition-transform cursor-pointer">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-                  <Swords className="h-5 w-5 text-accent-foreground" />
-                </div>
-                <div>
-                  <p className="font-display font-bold text-sm">Quick Match</p>
-                  <p className="text-xs text-muted-foreground">Find opponent</p>
-                </div>
-              </CardContent>
-            </Card>
+            <JoinByCodeDialog>
+              <Card className="border-accent/30 bg-gradient-to-br from-accent/10 to-transparent active:scale-[0.98] transition-transform cursor-pointer">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
+                    <Ticket className="h-5 w-5 text-accent-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-display font-bold text-sm">Join Code</p>
+                    <p className="text-xs text-muted-foreground">Enter invite</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </JoinByCodeDialog>
           </motion.div>
         </section>
 

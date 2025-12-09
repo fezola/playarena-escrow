@@ -78,6 +78,16 @@ export function useMatches() {
     };
   }, []);
 
+  // Generate a random 6-character invite code
+  const generateInviteCode = (): string => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed similar chars like 0/O, 1/I
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  };
+
   const createMatch = async (
     gameType: Database['public']['Enums']['game_type'],
     stakeAmount: number,
@@ -123,6 +133,20 @@ export function useMatches() {
       return null;
     }
 
+    // Generate and save invite code
+    const inviteCode = generateInviteCode();
+    const { error: inviteError } = await supabase
+      .from('game_invites')
+      .insert({
+        match_id: match.id,
+        created_by: profile.id,
+        invite_code: inviteCode,
+      });
+
+    if (inviteError) {
+      console.error('Error creating invite code:', inviteError);
+    }
+
     // Add creator as player
     const { error: playerError } = await supabase
       .from('match_players')
@@ -145,10 +169,10 @@ export function useMatches() {
 
     toast({
       title: 'Match created!',
-      description: 'Waiting for an opponent to join...',
+      description: `Invite code: ${inviteCode}`,
     });
 
-    return match;
+    return { ...match, inviteCode };
   };
 
   const joinMatch = async (matchId: string) => {

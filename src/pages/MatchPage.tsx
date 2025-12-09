@@ -32,6 +32,7 @@ const MatchPage = () => {
   const { toast } = useToast();
 
   const [match, setMatch] = useState<MatchWithPlayers | null>(null);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 const [gameState, setGameState] = useState<TicTacToeState>({
     board: Array(9).fill(null) as TicTacToeCell[],
@@ -72,6 +73,17 @@ const [gameState, setGameState] = useState<TicTacToeState>({
     // Load game state
     if (data.game_state) {
       setGameState(data.game_state as unknown as TicTacToeState);
+    }
+
+    // Fetch invite code
+    const { data: invite } = await supabase
+      .from('game_invites')
+      .select('invite_code')
+      .eq('match_id', id)
+      .maybeSingle();
+    
+    if (invite) {
+      setInviteCode(invite.invite_code);
     }
     
     setLoading(false);
@@ -198,6 +210,16 @@ const [gameState, setGameState] = useState<TicTacToeState>({
     });
   };
 
+  const handleCopyCode = () => {
+    if (inviteCode) {
+      navigator.clipboard.writeText(inviteCode);
+      toast({
+        title: 'Code Copied',
+        description: `Share code "${inviteCode}" with your opponent!`,
+      });
+    }
+  };
+
   const handlePlayAgain = async () => {
     if (!match) return;
 
@@ -313,8 +335,21 @@ const [gameState, setGameState] = useState<TicTacToeState>({
               <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
               <h3 className="font-display font-bold text-lg mb-2">Waiting for opponent</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Share the link below to invite someone
+                Share the code or link below to invite someone
               </p>
+              
+              {inviteCode && (
+                <div className="mb-4">
+                  <p className="text-xs text-muted-foreground mb-2">Invite Code</p>
+                  <button 
+                    onClick={handleCopyCode}
+                    className="bg-muted px-6 py-3 rounded-lg font-mono text-2xl tracking-widest font-bold hover:bg-muted/80 transition-colors"
+                  >
+                    {inviteCode}
+                  </button>
+                </div>
+              )}
+              
               <Button onClick={handleCopyLink} variant="outline" className="w-full">
                 <Copy className="h-4 w-4 mr-2" />
                 Copy Match Link
