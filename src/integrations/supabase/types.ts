@@ -14,6 +14,64 @@ export type Database = {
   }
   public: {
     Tables: {
+      escrow: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          match_id: string
+          player_id: string
+          released_at: string | null
+          released_to: string | null
+          status: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          match_id: string
+          player_id: string
+          released_at?: string | null
+          released_to?: string | null
+          status?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          match_id?: string
+          player_id?: string
+          released_at?: string | null
+          released_to?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escrow_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escrow_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escrow_released_to_fkey"
+            columns: ["released_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       friends: {
         Row: {
           created_at: string | null
@@ -244,6 +302,27 @@ export type Database = {
           },
         ]
       }
+      platform_settings: {
+        Row: {
+          id: string
+          setting_key: string
+          setting_value: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          setting_key: string
+          setting_value: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          setting_key?: string
+          setting_value?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -360,7 +439,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      refund_escrow: { Args: { _match_id: string }; Returns: Json }
+      release_escrow_to_winner: {
+        Args: { _match_id: string; _winner_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       game_type: "tic-tac-toe" | "chess" | "scrabble"

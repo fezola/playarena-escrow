@@ -153,11 +153,33 @@ export function JoinByCodeDialog({ children }: JoinByCodeDialogProps) {
         })
         .eq('id', invite.id);
 
-      // Deduct stake
+      // Deduct stake and add to escrow
       await supabase
         .from('profiles')
         .update({ wallet_balance: (profile?.wallet_balance || 0) - match.stake_amount })
         .eq('id', profile?.id);
+
+      // Add to escrow
+      await supabase
+        .from('escrow')
+        .insert({
+          match_id: match.id,
+          player_id: profile?.id,
+          amount: match.stake_amount,
+          status: 'held',
+        });
+
+      // Record stake transaction
+      await supabase
+        .from('transactions')
+        .insert({
+          user_id: profile?.id,
+          amount: match.stake_amount,
+          tx_type: 'stake',
+          status: 'confirmed',
+          confirmed_at: new Date().toISOString(),
+          match_id: match.id,
+        });
 
       toast({
         title: 'Joined match!',
