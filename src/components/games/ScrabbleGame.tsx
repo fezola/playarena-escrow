@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Shuffle, Send, Trophy } from 'lucide-react';
+import { RefreshCw, Shuffle, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const BOARD_SIZE = 15;
@@ -9,20 +9,16 @@ const BOARD_SIZE = 15;
 type CellType = 'normal' | 'double-letter' | 'triple-letter' | 'double-word' | 'triple-word' | 'center';
 
 const getCellType = (row: number, col: number): CellType => {
-  // Triple word scores
   if ((row === 0 || row === 7 || row === 14) && (col === 0 || col === 7 || col === 14)) {
     if (row === 7 && col === 7) return 'center';
     return 'triple-word';
   }
-  // Double word scores
   if (row === col || row + col === 14) {
     if (row >= 1 && row <= 4) return 'double-word';
     if (row >= 10 && row <= 13) return 'double-word';
   }
-  // Triple letter scores
   if ((row === 1 || row === 13) && (col === 5 || col === 9)) return 'triple-letter';
   if ((row === 5 || row === 9) && (col === 1 || col === 5 || col === 9 || col === 13)) return 'triple-letter';
-  // Double letter scores
   if ((row === 0 || row === 14) && (col === 3 || col === 11)) return 'double-letter';
   if ((row === 2 || row === 12) && (col === 6 || col === 8)) return 'double-letter';
   if ((row === 3 || row === 11) && (col === 0 || col === 7 || col === 14)) return 'double-letter';
@@ -34,11 +30,11 @@ const getCellType = (row: number, col: number): CellType => {
 
 const cellTypeStyles: Record<CellType, string> = {
   'normal': 'bg-card',
-  'double-letter': 'bg-sky-500/30 border-sky-400/50',
-  'triple-letter': 'bg-blue-600/40 border-blue-500/50',
-  'double-word': 'bg-pink-500/30 border-pink-400/50',
-  'triple-word': 'bg-red-500/40 border-red-400/50',
-  'center': 'bg-primary/20 border-primary/50',
+  'double-letter': 'bg-sky-500/30',
+  'triple-letter': 'bg-blue-600/40',
+  'double-word': 'bg-pink-500/30',
+  'triple-word': 'bg-red-500/40',
+  'center': 'bg-primary/20',
 };
 
 const letterPoints: Record<string, number> = {
@@ -52,7 +48,6 @@ interface PlacedTile {
   letter: string;
   row: number;
   col: number;
-  isNew?: boolean;
 }
 
 export function ScrabbleGame() {
@@ -63,7 +58,7 @@ export function ScrabbleGame() {
   const [selectedTile, setSelectedTile] = useState<number | null>(null);
   const [scores, setScores] = useState({ player: 0, cpu: 0 });
   const [currentWordTiles, setCurrentWordTiles] = useState<PlacedTile[]>([]);
-  const [message, setMessage] = useState<string>('Place tiles to form a word');
+  const [message, setMessage] = useState<string>('Tap a tile, then tap the board');
 
   const shuffleTiles = () => {
     setPlayerTiles([...playerTiles].sort(() => Math.random() - 0.5));
@@ -78,7 +73,7 @@ export function ScrabbleGame() {
     newBoard[row][col] = letter;
     setBoard(newBoard);
 
-    setCurrentWordTiles([...currentWordTiles, { letter, row, col, isNew: true }]);
+    setCurrentWordTiles([...currentWordTiles, { letter, row, col }]);
     setPlayerTiles(playerTiles.filter((_, i) => i !== selectedTile));
     setSelectedTile(null);
   };
@@ -110,13 +105,11 @@ export function ScrabbleGame() {
     setCurrentWordTiles([]);
     setMessage(`+${wordScore} points!`);
 
-    // Draw new tiles
     const newTiles = Array(currentWordTiles.length)
       .fill(null)
       .map(() => String.fromCharCode(65 + Math.floor(Math.random() * 26)));
     setPlayerTiles([...playerTiles, ...newTiles]);
 
-    // Simple CPU turn
     setTimeout(() => {
       const cpuScore = Math.floor(Math.random() * 15) + 5;
       setScores((prev) => ({ ...prev, cpu: prev.cpu + cpuScore }));
@@ -130,29 +123,38 @@ export function ScrabbleGame() {
     setSelectedTile(null);
     setCurrentWordTiles([]);
     setScores({ player: 0, cpu: 0 });
-    setMessage('Place tiles to form a word');
+    setMessage('Tap a tile, then tap the board');
   };
 
   return (
-    <div className="flex flex-col items-center px-2 py-4">
+    <div className="flex flex-col items-center py-3 space-y-3">
       {/* Scores */}
-      <div className="flex items-center justify-center gap-6 mb-4 w-full max-w-sm">
-        <div className="flex-1 text-center p-2 rounded-xl bg-card border border-border">
-          <p className="text-xs text-muted-foreground">You</p>
-          <p className="font-display text-xl font-bold text-primary">{scores.player}</p>
+      <div className="flex items-center justify-center gap-3 w-full">
+        <div className="flex-1 text-center py-2 px-3 rounded-lg bg-card border border-border">
+          <p className="text-[10px] text-muted-foreground">You</p>
+          <p className="font-display text-lg font-bold text-primary">{scores.player}</p>
         </div>
-        <div className="flex-1 text-center p-2 rounded-xl bg-card border border-border">
-          <p className="text-xs text-muted-foreground">CPU</p>
-          <p className="font-display text-xl font-bold text-accent">{scores.cpu}</p>
+        <div className="flex-1 text-center py-2 px-3 rounded-lg bg-card border border-border">
+          <p className="text-[10px] text-muted-foreground">CPU</p>
+          <p className="font-display text-lg font-bold text-accent">{scores.cpu}</p>
         </div>
       </div>
 
       {/* Message */}
-      <p className="text-sm text-muted-foreground mb-3">{message}</p>
+      <p className="text-xs text-muted-foreground">{message}</p>
 
-      {/* Board */}
-      <div className="w-full max-w-sm aspect-square border border-border rounded-lg overflow-hidden bg-amber-900/20">
-        <div className="grid grid-cols-15 h-full gap-px p-px bg-border/30" style={{ gridTemplateColumns: `repeat(${BOARD_SIZE}, 1fr)` }}>
+      {/* Board - Smaller to fit everything */}
+      <div 
+        className="w-full border border-border rounded-lg overflow-hidden bg-amber-900/20"
+        style={{ maxWidth: 'min(100%, 320px)', aspectRatio: '1/1' }}
+      >
+        <div 
+          className="grid h-full w-full gap-[1px] p-[1px] bg-border/30"
+          style={{ 
+            gridTemplateColumns: `repeat(${BOARD_SIZE}, 1fr)`,
+            gridTemplateRows: `repeat(${BOARD_SIZE}, 1fr)`
+          }}
+        >
           {board.map((row, rowIndex) =>
             row.map((cell, colIndex) => {
               const cellType = getCellType(rowIndex, colIndex);
@@ -161,11 +163,11 @@ export function ScrabbleGame() {
               );
 
               return (
-                <motion.button
+                <button
                   key={`${rowIndex}-${colIndex}`}
                   onClick={() => handleCellClick(rowIndex, colIndex)}
                   className={cn(
-                    'aspect-square flex items-center justify-center text-[8px] font-bold border transition-all',
+                    'flex items-center justify-center transition-all',
                     cellTypeStyles[cellType],
                     isNewTile && 'ring-1 ring-primary',
                     !cell && selectedTile !== null && 'hover:bg-primary/20'
@@ -175,12 +177,12 @@ export function ScrabbleGame() {
                     <motion.span
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="w-full h-full flex items-center justify-center bg-amber-200 text-amber-900 rounded-sm"
+                      className="w-full h-full flex items-center justify-center bg-amber-200 text-amber-900 text-[8px] font-bold rounded-[1px]"
                     >
                       {cell}
                     </motion.span>
                   )}
-                </motion.button>
+                </button>
               );
             })
           )}
@@ -188,28 +190,28 @@ export function ScrabbleGame() {
       </div>
 
       {/* Player Tiles */}
-      <div className="flex gap-2 mt-4 mb-4">
+      <div className="flex gap-1.5 flex-wrap justify-center">
         {playerTiles.map((tile, index) => (
           <motion.button
             key={`${tile}-${index}`}
             whileTap={{ scale: 0.9 }}
             onClick={() => setSelectedTile(selectedTile === index ? null : index)}
             className={cn(
-              'w-10 h-10 rounded-lg flex flex-col items-center justify-center font-bold text-lg',
-              'bg-amber-200 text-amber-900 border-2 border-amber-400 shadow-md',
-              selectedTile === index && 'ring-2 ring-primary scale-110'
+              'w-8 h-8 rounded-md flex flex-col items-center justify-center font-bold',
+              'bg-amber-200 text-amber-900 border-2 border-amber-400 shadow',
+              selectedTile === index && 'ring-2 ring-primary scale-105'
             )}
           >
-            <span>{tile}</span>
-            <span className="text-[8px]">{letterPoints[tile]}</span>
+            <span className="text-sm leading-none">{tile}</span>
+            <span className="text-[7px] leading-none">{letterPoints[tile]}</span>
           </motion.button>
         ))}
       </div>
 
       {/* Controls */}
-      <div className="flex gap-3">
-        <Button variant="outline" size="sm" onClick={shuffleTiles}>
-          <Shuffle className="h-4 w-4 mr-2" />
+      <div className="flex gap-2 flex-wrap justify-center">
+        <Button variant="outline" size="sm" onClick={shuffleTiles} className="h-8 text-xs">
+          <Shuffle className="h-3 w-3 mr-1" />
           Shuffle
         </Button>
         <Button 
@@ -217,29 +219,30 @@ export function ScrabbleGame() {
           size="sm" 
           onClick={submitWord}
           disabled={currentWordTiles.length === 0}
+          className="h-8 text-xs"
         >
-          <Send className="h-4 w-4 mr-2" />
+          <Send className="h-3 w-3 mr-1" />
           Submit (+{calculateWordScore()})
         </Button>
-        <Button variant="outline" size="sm" onClick={resetGame}>
-          <RefreshCw className="h-4 w-4 mr-2" />
+        <Button variant="outline" size="sm" onClick={resetGame} className="h-8 text-xs">
+          <RefreshCw className="h-3 w-3 mr-1" />
           Reset
         </Button>
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap justify-center gap-2 mt-4 text-[10px] text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-pink-500/30 rounded" /> 2x Word
+      <div className="flex flex-wrap justify-center gap-x-2 gap-y-1 text-[8px] text-muted-foreground">
+        <span className="flex items-center gap-0.5">
+          <div className="w-2 h-2 bg-pink-500/30 rounded-sm" /> 2xW
         </span>
-        <span className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-red-500/40 rounded" /> 3x Word
+        <span className="flex items-center gap-0.5">
+          <div className="w-2 h-2 bg-red-500/40 rounded-sm" /> 3xW
         </span>
-        <span className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-sky-500/30 rounded" /> 2x Letter
+        <span className="flex items-center gap-0.5">
+          <div className="w-2 h-2 bg-sky-500/30 rounded-sm" /> 2xL
         </span>
-        <span className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-blue-600/40 rounded" /> 3x Letter
+        <span className="flex items-center gap-0.5">
+          <div className="w-2 h-2 bg-blue-600/40 rounded-sm" /> 3xL
         </span>
       </div>
     </div>

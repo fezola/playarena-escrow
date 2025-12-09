@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Chess, Square, PieceSymbol, Color } from 'chess.js';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Trophy, RotateCcw } from 'lucide-react';
+import { RefreshCw, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const pieceUnicode: Record<Color, Record<PieceSymbol, string>> = {
@@ -31,7 +31,6 @@ export function ChessGame() {
     const moves = game.moves({ verbose: true });
     if (moves.length === 0) return;
 
-    // Simple random AI
     const randomMove = moves[Math.floor(Math.random() * moves.length)];
     
     setTimeout(() => {
@@ -48,9 +47,7 @@ export function ChessGame() {
     const square = getSquareName(row, col);
     const piece = game.get(square);
 
-    // If a piece is already selected
     if (selectedSquare) {
-      // Try to make a move
       if (validMoves.includes(square)) {
         const newGame = new Chess(game.fen());
         try {
@@ -60,7 +57,6 @@ export function ChessGame() {
           setSelectedSquare(null);
           setValidMoves([]);
 
-          // CPU moves after player
           if (!newGame.isGameOver()) {
             makeCPUMove();
           }
@@ -68,7 +64,6 @@ export function ChessGame() {
           // Invalid move
         }
       } else if (piece && piece.color === playerColor) {
-        // Select a different piece
         setSelectedSquare(square);
         const moves = game.moves({ square, verbose: true });
         setValidMoves(moves.map((m) => m.to as Square));
@@ -77,7 +72,6 @@ export function ChessGame() {
         setValidMoves([]);
       }
     } else if (piece && piece.color === playerColor) {
-      // Select this piece
       setSelectedSquare(square);
       const moves = game.moves({ square, verbose: true });
       setValidMoves(moves.map((m) => m.to as Square));
@@ -103,7 +97,7 @@ export function ChessGame() {
   const undoMove = () => {
     const newGame = new Chess(game.fen());
     newGame.undo();
-    newGame.undo(); // Undo CPU move too
+    newGame.undo();
     setGame(newGame);
     setSelectedSquare(null);
     setValidMoves([]);
@@ -115,26 +109,25 @@ export function ChessGame() {
     }
     if (game.isDraw()) return "It's a Draw!";
     if (game.isCheck()) return 'Check!';
-    return game.turn() === playerColor ? 'Your Turn' : 'CPU Thinking...';
+    return game.turn() === playerColor ? 'Your Turn (White)' : 'CPU Thinking...';
   };
 
   return (
-    <div className="flex flex-col items-center px-4 py-4">
+    <div className="flex flex-col items-center py-4">
       {/* Score Display */}
-      <div className="flex items-center justify-center gap-8 mb-4 w-full max-w-xs">
+      <div className="flex items-center justify-center gap-4 mb-3 w-full">
         <div className="flex-1 text-center p-2 rounded-xl bg-card border border-border">
-          <p className="text-xs text-muted-foreground mb-1">You (White)</p>
+          <p className="text-xs text-muted-foreground">You (White)</p>
           <p className="font-display text-xl font-bold">{scores.player}</p>
         </div>
-        <div className="text-muted-foreground font-display font-bold text-sm">VS</div>
         <div className="flex-1 text-center p-2 rounded-xl bg-card border border-border">
-          <p className="text-xs text-muted-foreground mb-1">CPU (Black)</p>
+          <p className="text-xs text-muted-foreground">CPU (Black)</p>
           <p className="font-display text-xl font-bold">{scores.cpu}</p>
         </div>
       </div>
 
       {/* Status */}
-      <div className="mb-4 text-center">
+      <div className="mb-3 text-center">
         <p className={cn(
           'text-sm font-medium',
           game.isCheck() && 'text-destructive',
@@ -144,9 +137,9 @@ export function ChessGame() {
         </p>
       </div>
 
-      {/* Chess Board */}
-      <div className="w-full max-w-xs aspect-square border-2 border-border rounded-lg overflow-hidden shadow-xl">
-        <div className="grid grid-cols-8 h-full">
+      {/* Chess Board - Full width */}
+      <div className="w-full aspect-square border-2 border-border rounded-lg overflow-hidden shadow-xl">
+        <div className="grid grid-cols-8 h-full w-full">
           {board.map((row, rowIndex) =>
             row.map((cell, colIndex) => {
               const square = getSquareName(rowIndex, colIndex);
@@ -156,12 +149,11 @@ export function ChessGame() {
               const isLastMove = lastMove?.from === square || lastMove?.to === square;
 
               return (
-                <motion.button
+                <button
                   key={square}
-                  whileTap={{ scale: 0.95 }}
                   onClick={() => handleSquareClick(rowIndex, colIndex)}
                   className={cn(
-                    'aspect-square flex items-center justify-center text-2xl relative transition-colors',
+                    'aspect-square flex items-center justify-center relative transition-colors',
                     isLight ? 'bg-amber-100' : 'bg-amber-800',
                     isSelected && 'ring-2 ring-primary ring-inset',
                     isLastMove && 'bg-primary/30'
@@ -169,8 +161,8 @@ export function ChessGame() {
                 >
                   {isValidMove && (
                     <div className={cn(
-                      'absolute w-3 h-3 rounded-full',
-                      cell ? 'ring-2 ring-primary/50 w-full h-full bg-transparent' : 'bg-primary/40'
+                      'absolute rounded-full z-10',
+                      cell ? 'ring-2 ring-primary/50 w-full h-full bg-transparent' : 'w-3 h-3 bg-primary/40'
                     )} />
                   )}
                   <AnimatePresence>
@@ -179,16 +171,15 @@ export function ChessGame() {
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         className={cn(
-                          'z-10 select-none',
+                          'z-20 select-none text-2xl sm:text-3xl',
                           cell.color === 'w' ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]' : 'text-gray-900'
                         )}
-                        style={{ fontSize: '1.75rem' }}
                       >
                         {pieceUnicode[cell.color][cell.type]}
                       </motion.span>
                     )}
                   </AnimatePresence>
-                </motion.button>
+                </button>
               );
             })
           )}
@@ -196,7 +187,7 @@ export function ChessGame() {
       </div>
 
       {/* Controls */}
-      <div className="flex gap-3 mt-6">
+      <div className="flex gap-3 mt-4">
         {!isGameOver && game.history().length > 0 && (
           <Button variant="outline" size="sm" onClick={undoMove}>
             <RotateCcw className="h-4 w-4 mr-2" />
@@ -213,26 +204,6 @@ export function ChessGame() {
           {isGameOver ? 'Play Again' : 'New Game'}
         </Button>
       </div>
-
-      {/* Game Over Display */}
-      <AnimatePresence>
-        {isGameOver && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm"
-          >
-            <div className="text-center p-6 bg-card rounded-2xl border border-border shadow-xl">
-              <Trophy className="h-12 w-12 mx-auto mb-3 text-warning" />
-              <h3 className="font-display text-xl font-bold mb-4">{getGameStatus()}</h3>
-              <Button variant="neon" onClick={resetGameHandler}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Play Again
-              </Button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
