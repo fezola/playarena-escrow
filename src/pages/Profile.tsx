@@ -8,17 +8,32 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Trophy, Gamepad2, Coins, TrendingUp, Settings, History, 
-  Wallet, LogOut, ChevronRight, Plus, Copy, CreditCard, ArrowUpRight
+  Wallet, LogOut, ChevronRight, Plus, Copy, CreditCard, ArrowUpRight, Loader2, DollarSign
 } from 'lucide-react';
 
+const QUICK_AMOUNTS = [10, 25, 50, 100];
+
 export default function Profile() {
-  const { user, profile, signOut, loading } = useAuth();
+  const { user, profile, signOut, refreshProfile, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isDepositOpen, setIsDepositOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('25');
+  const [isDepositing, setIsDepositing] = useState(false);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -33,6 +48,68 @@ export default function Profile() {
         title: 'Copied!',
         description: 'Wallet address copied to clipboard',
       });
+    }
+  };
+
+  const handleDeposit = async () => {
+    const amount = parseFloat(depositAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: 'Invalid amount',
+        description: 'Please enter a valid amount greater than 0',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (amount > 1000) {
+      toast({
+        title: 'Amount too high',
+        description: 'Maximum deposit is $1000',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsDepositing(true);
+
+    try {
+      const newBalance = (profile?.wallet_balance || 0) + amount;
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ wallet_balance: newBalance })
+        .eq('id', profile?.id);
+
+      if (error) throw error;
+
+      // Record transaction
+      await supabase.from('transactions').insert({
+        user_id: profile?.id,
+        amount,
+        tx_type: 'deposit',
+        status: 'confirmed',
+        confirmed_at: new Date().toISOString(),
+      });
+
+      await refreshProfile();
+      
+      toast({
+        title: 'Deposit successful!',
+        description: `$${amount.toFixed(2)} has been added to your wallet.`,
+      });
+      
+      setIsDepositOpen(false);
+      setDepositAmount('25');
+    } catch (error) {
+      console.error('Deposit error:', error);
+      toast({
+        title: 'Deposit failed',
+        description: 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDepositing(false);
     }
   };
 
@@ -145,14 +222,16 @@ export default function Profile() {
               ${profile?.wallet_balance?.toFixed(2) || '0.00'}
             </p>
             <p className="text-xs text-muted-foreground mb-4">
-              {profile?.wallet_address 
-                ? `${profile.wallet_address.slice(0, 10)}...${profile.wallet_address.slice(-8)}`
-                : 'No wallet connected'
-              }
+              In-app balance
             </p>
 
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" size="sm" className="gap-1">
+              <Button 
+                variant="neon" 
+                size="sm" 
+                className="gap-1"
+                onClick={() => setIsDepositOpen(true)}
+              >
                 <Plus className="h-4 w-4" />
                 Add Funds
               </Button>
@@ -222,6 +301,104 @@ export default function Profile() {
           </Button>
         </div>
       </main>
+
+      {/* Deposit Dialog */}
+      <Dialog open={isDepositOpen} onOpenChange={setIsDepositOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" />
+              Add Funds
+            </DialogTitle>
+            <DialogDescription>
+              Add funds to your PlayArena wallet to start playing
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Quick amounts */}
+            <div className="grid grid-cols-4 gap-2">
+              {QUICK_AMOUNTS.map((amount) => (
+                <Button
+                  key={amount}
+                  variant={depositAmount === String(amount) ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDepositAmount(String(amount))}
+                  className="font-display"
+                >
+                  ${amount}
+                </Button>
+              ))}
+            </div>
+
+            {/* Custom amount */}
+            <div className="space-y-2">
+              <Label htmlFor="amount">Custom amount</Label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="amount"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  step="0.01"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  className="pl-9 font-display text-lg"
+                  placeholder="0.00"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Min: $1 • Max: $1,000
+              </p>
+            </div>
+
+            {/* Summary */}
+            <Card className="border-border/50 bg-muted/50">
+              <CardContent className="p-3 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Current balance</span>
+                  <span>${profile?.wallet_balance?.toFixed(2) || '0.00'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Adding</span>
+                  <span className="text-success">+${parseFloat(depositAmount || '0').toFixed(2)}</span>
+                </div>
+                <div className="border-t border-border pt-2 flex justify-between font-medium">
+                  <span>New balance</span>
+                  <span className="text-primary font-display">
+                    ${((profile?.wallet_balance || 0) + parseFloat(depositAmount || '0')).toFixed(2)}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Button
+              onClick={handleDeposit}
+              disabled={isDepositing || !depositAmount || parseFloat(depositAmount) <= 0}
+              variant="neon"
+              className="w-full"
+              size="lg"
+            >
+              {isDepositing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add ${parseFloat(depositAmount || '0').toFixed(2)}
+                </>
+              )}
+            </Button>
+
+            <p className="text-xs text-center text-muted-foreground">
+              Demo mode: Funds are simulated for testing purposes
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </MobileLayout>
   );
 }
