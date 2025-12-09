@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 const navItems = [
   { icon: Home, label: 'Home', path: '/' },
   { icon: Gamepad2, label: 'Games', path: '/games' },
-  { icon: Plus, label: 'Play', path: '/create', isMain: true },
+  { icon: Plus, label: 'Play', path: '/create' },
   { icon: Users, label: 'Friends', path: '/friends' },
   { icon: Trophy, label: 'Ranks', path: '/leaderboard' },
   { icon: User, label: 'Profile', path: '/profile' },
@@ -20,20 +20,6 @@ export function MobileNavigation() {
       <div className="flex items-center justify-around h-16 px-1">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
-          
-          if (item.isMain) {
-            return (
-              <Link key={item.path} to={item.path} className="relative -mt-6">
-                <motion.div
-                  whileTap={{ scale: 0.9 }}
-                  className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg"
-                  style={{ boxShadow: '0 0 20px hsl(var(--primary) / 0.5)' }}
-                >
-                  <item.icon className="h-5 w-5 text-primary-foreground" />
-                </motion.div>
-              </Link>
-            );
-          }
 
           return (
             <Link
