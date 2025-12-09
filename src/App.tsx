@@ -13,6 +13,8 @@ import Leaderboard from "./pages/Leaderboard";
 import Profile from "./pages/Profile";
 import Friends from "./pages/Friends";
 import Auth from "./pages/Auth";
+import MatchHistory from "./pages/MatchHistory";
+import Transactions from "./pages/Transactions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +36,8 @@ const App = () => (
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/friends" element={<Friends />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/history" element={<MatchHistory />} />
+            <Route path="/transactions" element={<Transactions />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
