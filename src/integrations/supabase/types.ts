@@ -14,6 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
+      friends: {
+        Row: {
+          created_at: string | null
+          friend_id: string
+          id: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          friend_id: string
+          id?: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          friend_id?: string
+          id?: string
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      game_invites: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          expires_at: string | null
+          id: string
+          invite_code: string
+          match_id: string
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          invite_code: string
+          match_id: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          invite_code?: string
+          match_id?: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_invites_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       match_players: {
         Row: {
           deposit_tx_hash: string | null
@@ -186,12 +251,16 @@ export type Database = {
           current_streak: number
           display_name: string | null
           id: string
+          level: number | null
           total_earnings: number
           total_losses: number
           total_wins: number
           updated_at: string
           user_id: string
+          username: string | null
           wallet_address: string | null
+          wallet_balance: number | null
+          xp: number | null
         }
         Insert: {
           avatar_url?: string | null
@@ -199,12 +268,16 @@ export type Database = {
           current_streak?: number
           display_name?: string | null
           id?: string
+          level?: number | null
           total_earnings?: number
           total_losses?: number
           total_wins?: number
           updated_at?: string
           user_id: string
+          username?: string | null
           wallet_address?: string | null
+          wallet_balance?: number | null
+          xp?: number | null
         }
         Update: {
           avatar_url?: string | null
@@ -212,12 +285,16 @@ export type Database = {
           current_streak?: number
           display_name?: string | null
           id?: string
+          level?: number | null
           total_earnings?: number
           total_losses?: number
           total_wins?: number
           updated_at?: string
           user_id?: string
+          username?: string | null
           wallet_address?: string | null
+          wallet_balance?: number | null
+          xp?: number | null
         }
         Relationships: []
       }
