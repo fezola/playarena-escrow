@@ -23,11 +23,7 @@ interface MatchWithPlayers extends Match {
   })[];
 }
 
-type TicTacToeState = {
-  board: (string | null)[];
-  currentPlayer: 'X' | 'O';
-  winner: string | null;
-};
+import { TicTacToeState, TicTacToeCell } from '@/types/game';
 
 const MatchPage = () => {
   const { id } = useParams();
@@ -37,10 +33,11 @@ const MatchPage = () => {
 
   const [match, setMatch] = useState<MatchWithPlayers | null>(null);
   const [loading, setLoading] = useState(true);
-  const [gameState, setGameState] = useState<TicTacToeState>({
-    board: Array(9).fill(null),
+const [gameState, setGameState] = useState<TicTacToeState>({
+    board: Array(9).fill(null) as TicTacToeCell[],
     currentPlayer: 'X',
     winner: null,
+    winningLine: null,
   });
 
   const fetchMatch = async () => {
@@ -132,7 +129,7 @@ const MatchPage = () => {
     }
 
     // Make move
-    const newBoard = [...gameState.board];
+    const newBoard = [...gameState.board] as TicTacToeCell[];
     newBoard[index] = playerSymbol;
 
     // Check for winner
@@ -142,10 +139,13 @@ const MatchPage = () => {
       [0, 4, 8], [2, 4, 6],
     ];
 
-    let winner: string | null = null;
-    for (const [a, b, c] of lines) {
+    let winner: 'X' | 'O' | 'draw' | null = null;
+    let winningLine: number[] | null = null;
+    for (const line of lines) {
+      const [a, b, c] = line;
       if (newBoard[a] && newBoard[a] === newBoard[b] && newBoard[a] === newBoard[c]) {
-        winner = newBoard[a];
+        winner = newBoard[a] as 'X' | 'O';
+        winningLine = line;
         break;
       }
     }
@@ -159,6 +159,7 @@ const MatchPage = () => {
       board: newBoard,
       currentPlayer: playerSymbol === 'X' ? 'O' : 'X',
       winner,
+      winningLine,
     };
 
     // Update game state in database
@@ -201,9 +202,10 @@ const MatchPage = () => {
     if (!match) return;
 
     const newState: TicTacToeState = {
-      board: Array(9).fill(null),
+      board: Array(9).fill(null) as TicTacToeCell[],
       currentPlayer: 'X',
       winner: null,
+      winningLine: null,
     };
 
     await supabase
