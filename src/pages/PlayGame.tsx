@@ -15,12 +15,16 @@ export default function PlayGame() {
   if (!gameType || !['tic-tac-toe', 'chess', 'scrabble'].includes(gameType)) {
     return (
       <MobileLayout>
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-screen px-4">
           <p>Game not found</p>
         </div>
       </MobileLayout>
     );
   }
+
+  const handleBack = () => {
+    navigate('/games');
+  };
 
   const renderGame = () => {
     switch (gameType) {
@@ -36,11 +40,11 @@ export default function PlayGame() {
   };
 
   return (
-    <MobileLayout hideNav>
+    <MobileLayout>
       {/* Game Header */}
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border/50">
         <div className="flex items-center justify-between px-4 py-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <Button variant="ghost" size="icon" onClick={handleBack}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           
@@ -68,7 +72,7 @@ export default function PlayGame() {
       </header>
 
       {/* Game Area */}
-      <main className="flex-1">
+      <main className="flex-1 px-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}

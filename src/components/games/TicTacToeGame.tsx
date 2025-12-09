@@ -39,9 +39,9 @@ export function TicTacToeGame() {
   };
 
   return (
-    <div className="flex flex-col items-center px-4 py-6">
+    <div className="flex flex-col items-center py-6">
       {/* Score Display */}
-      <div className="flex items-center justify-center gap-8 mb-8 w-full max-w-xs">
+      <div className="flex items-center justify-center gap-4 mb-6 w-full">
         <div className="flex-1 text-center p-3 rounded-xl bg-primary/10 border border-primary/20">
           <p className="text-xs text-muted-foreground mb-1">You (X)</p>
           <p className="font-display text-2xl font-bold text-primary">{scores.player}</p>
@@ -70,8 +70,8 @@ export function TicTacToeGame() {
         )}
       </AnimatePresence>
 
-      {/* Game Board */}
-      <div className="grid grid-cols-3 gap-2 w-full max-w-xs aspect-square">
+      {/* Game Board - Full width */}
+      <div className="grid grid-cols-3 gap-2 w-full aspect-square">
         {state.board.map((cell, index) => {
           const isWinningCell = state.winningLine?.includes(index);
           const isClickable = !cell && !state.winner && state.currentPlayer === playerSymbol;
@@ -82,7 +82,7 @@ export function TicTacToeGame() {
               whileTap={isClickable ? { scale: 0.95 } : undefined}
               onClick={() => handleCellClick(index)}
               className={cn(
-                'aspect-square rounded-xl flex items-center justify-center text-4xl font-display font-bold transition-all',
+                'aspect-square rounded-xl flex items-center justify-center text-5xl font-display font-bold transition-all',
                 'bg-card border-2',
                 isWinningCell && 'border-success bg-success/10',
                 !isWinningCell && 'border-border',
