@@ -6,8 +6,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -21,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Trophy, Gamepad2, Coins, TrendingUp, Settings, History, 
-  Wallet, LogOut, ChevronRight, Plus, Copy, CreditCard, ArrowUpRight, Loader2, DollarSign
+  Wallet, LogOut, ChevronRight, Plus, CreditCard, ArrowUpRight, Loader2, DollarSign
 } from 'lucide-react';
 
 const QUICK_AMOUNTS = [10, 25, 50, 100];
@@ -32,23 +30,15 @@ export default function Profile() {
   const { toast } = useToast();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isDepositOpen, setIsDepositOpen] = useState(false);
+  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
   const [depositAmount, setDepositAmount] = useState('25');
-  const [isDepositing, setIsDepositing] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
     await signOut();
     navigate('/auth');
-  };
-
-  const handleCopyAddress = () => {
-    if (profile?.wallet_address) {
-      navigator.clipboard.writeText(profile.wallet_address);
-      toast({
-        title: 'Copied!',
-        description: 'Wallet address copied to clipboard',
-      });
-    }
   };
 
   const handleDeposit = async () => {
@@ -71,7 +61,7 @@ export default function Profile() {
       return;
     }
 
-    setIsDepositing(true);
+    setIsProcessing(true);
 
     try {
       const newBalance = (profile?.wallet_balance || 0) + amount;
@@ -109,7 +99,71 @@ export default function Profile() {
         variant: 'destructive',
       });
     } finally {
-      setIsDepositing(false);
+      setIsProcessing(false);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    const amount = parseFloat(withdrawAmount);
+    const balance = profile?.wallet_balance || 0;
+
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: 'Invalid amount',
+        description: 'Please enter a valid amount greater than 0',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (amount > balance) {
+      toast({
+        title: 'Insufficient balance',
+        description: `You only have $${balance.toFixed(2)} available`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const newBalance = balance - amount;
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ wallet_balance: newBalance })
+        .eq('id', profile?.id);
+
+      if (error) throw error;
+
+      // Record transaction
+      await supabase.from('transactions').insert({
+        user_id: profile?.id,
+        amount,
+        tx_type: 'withdrawal',
+        status: 'confirmed',
+        confirmed_at: new Date().toISOString(),
+      });
+
+      await refreshProfile();
+      
+      toast({
+        title: 'Withdrawal successful!',
+        description: `$${amount.toFixed(2)} has been withdrawn.`,
+      });
+      
+      setIsWithdrawOpen(false);
+      setWithdrawAmount('');
+    } catch (error) {
+      console.error('Withdraw error:', error);
+      toast({
+        title: 'Withdrawal failed',
+        description: 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -150,9 +204,6 @@ export default function Profile() {
     );
   }
 
-  const xpProgress = ((profile?.xp || 0) % 100);
-  const nextLevel = (profile?.level || 1) + 1;
-
   return (
     <MobileLayout>
       {/* Header with gradient */}
@@ -168,7 +219,7 @@ export default function Profile() {
         <div className="px-4 pb-6">
           <Card className="border-border/50 overflow-hidden">
             <CardContent className="p-4">
-              <div className="flex items-center gap-4 mb-4">
+              <div className="flex items-center gap-4">
                 <Avatar className="h-16 w-16 border-2 border-primary">
                   <AvatarImage src={profile?.avatar_url || undefined} />
                   <AvatarFallback className="bg-primary/20 text-primary font-display text-xl">
@@ -182,22 +233,10 @@ export default function Profile() {
                   {profile?.username && (
                     <p className="text-sm text-muted-foreground">@{profile.username}</p>
                   )}
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="outline" className="text-xs">
-                      <Trophy className="h-3 w-3 mr-1" />
-                      Level {profile?.level || 1}
-                    </Badge>
-                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {user.email}
+                  </p>
                 </div>
-              </div>
-
-              {/* XP Progress */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">XP to Level {nextLevel}</span>
-                  <span className="font-medium">{xpProgress}/100</span>
-                </div>
-                <Progress value={xpProgress} className="h-2" />
               </div>
             </CardContent>
           </Card>
@@ -208,21 +247,16 @@ export default function Profile() {
         {/* Wallet Section */}
         <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-primary" />
-                <span className="font-display font-bold">Wallet</span>
-              </div>
-              <Button variant="ghost" size="sm" onClick={handleCopyAddress}>
-                <Copy className="h-4 w-4" />
-              </Button>
+            <div className="flex items-center gap-2 mb-4">
+              <Wallet className="h-5 w-5 text-primary" />
+              <span className="font-display font-bold">Wallet</span>
             </div>
             
             <p className="font-display text-3xl font-bold mb-1">
               ${profile?.wallet_balance?.toFixed(2) || '0.00'}
             </p>
             <p className="text-xs text-muted-foreground mb-4">
-              In-app balance
+              Available balance
             </p>
 
             <div className="grid grid-cols-2 gap-2">
@@ -235,7 +269,13 @@ export default function Profile() {
                 <Plus className="h-4 w-4" />
                 Add Funds
               </Button>
-              <Button variant="outline" size="sm" className="gap-1">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-1"
+                onClick={() => setIsWithdrawOpen(true)}
+                disabled={(profile?.wallet_balance || 0) <= 0}
+              >
                 <ArrowUpRight className="h-4 w-4" />
                 Withdraw
               </Button>
@@ -333,11 +373,11 @@ export default function Profile() {
 
             {/* Custom amount */}
             <div className="space-y-2">
-              <Label htmlFor="amount">Custom amount</Label>
+              <Label htmlFor="deposit-amount">Custom amount</Label>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="amount"
+                  id="deposit-amount"
                   type="number"
                   min="1"
                   max="1000"
@@ -348,9 +388,6 @@ export default function Profile() {
                   placeholder="0.00"
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Min: $1 • Max: $1,000
-              </p>
             </div>
 
             {/* Summary */}
@@ -375,12 +412,12 @@ export default function Profile() {
 
             <Button
               onClick={handleDeposit}
-              disabled={isDepositing || !depositAmount || parseFloat(depositAmount) <= 0}
+              disabled={isProcessing || !depositAmount || parseFloat(depositAmount) <= 0}
               variant="neon"
               className="w-full"
               size="lg"
             >
-              {isDepositing ? (
+              {isProcessing ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Processing...
@@ -394,7 +431,85 @@ export default function Profile() {
             </Button>
 
             <p className="text-xs text-center text-muted-foreground">
-              Demo mode: Funds are simulated for testing purposes
+              Demo mode: Funds are simulated for testing
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Withdraw Dialog */}
+      <Dialog open={isWithdrawOpen} onOpenChange={setIsWithdrawOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowUpRight className="h-5 w-5 text-primary" />
+              Withdraw Funds
+            </DialogTitle>
+            <DialogDescription>
+              Withdraw your earnings from PlayArena
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="p-3 text-center">
+                <p className="text-sm text-muted-foreground">Available balance</p>
+                <p className="font-display text-2xl font-bold text-primary">
+                  ${profile?.wallet_balance?.toFixed(2) || '0.00'}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Withdraw amount */}
+            <div className="space-y-2">
+              <Label htmlFor="withdraw-amount">Withdraw amount</Label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="withdraw-amount"
+                  type="number"
+                  min="1"
+                  max={profile?.wallet_balance || 0}
+                  step="0.01"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  className="pl-9 font-display text-lg"
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="flex justify-between">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setWithdrawAmount(String(profile?.wallet_balance || 0))}
+                >
+                  Withdraw all
+                </Button>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleWithdraw}
+              disabled={isProcessing || !withdrawAmount || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > (profile?.wallet_balance || 0)}
+              variant="neon"
+              className="w-full"
+              size="lg"
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <ArrowUpRight className="h-4 w-4 mr-2" />
+                  Withdraw ${parseFloat(withdrawAmount || '0').toFixed(2)}
+                </>
+              )}
+            </Button>
+
+            <p className="text-xs text-center text-muted-foreground">
+              Demo mode: Withdrawals are simulated for testing
             </p>
           </div>
         </DialogContent>

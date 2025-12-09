@@ -61,9 +61,6 @@ export default function Index() {
               <p className="font-display font-bold text-sm">
                 {profile?.display_name || 'Player'}
               </p>
-              <p className="text-xs text-muted-foreground">
-                Level {profile?.level || 1}
-              </p>
             </div>
           </div>
           
