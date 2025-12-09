@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Gamepad2, Trophy, User, Plus } from 'lucide-react';
+import { Home, Gamepad2, Users, User, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
@@ -7,7 +7,7 @@ const navItems = [
   { icon: Home, label: 'Home', path: '/' },
   { icon: Gamepad2, label: 'Games', path: '/games' },
   { icon: Plus, label: 'Play', path: '/create', isMain: true },
-  { icon: Trophy, label: 'Ranks', path: '/leaderboard' },
+  { icon: Users, label: 'Friends', path: '/friends' },
   { icon: User, label: 'Profile', path: '/profile' },
 ];
 
