@@ -250,6 +250,7 @@ export type Database = {
           created_at: string
           current_streak: number
           display_name: string | null
+          encrypted_private_key: string | null
           id: string
           level: number | null
           total_earnings: number
@@ -267,6 +268,7 @@ export type Database = {
           created_at?: string
           current_streak?: number
           display_name?: string | null
+          encrypted_private_key?: string | null
           id?: string
           level?: number | null
           total_earnings?: number
@@ -284,6 +286,7 @@ export type Database = {
           created_at?: string
           current_streak?: number
           display_name?: string | null
+          encrypted_private_key?: string | null
           id?: string
           level?: number | null
           total_earnings?: number
