@@ -174,6 +174,8 @@ const [gameState, setGameState] = useState<TicTacToeState>({
       winningLine,
     };
 
+    const winnerId = winner === playerSymbol ? profile?.id : winner === 'draw' ? null : opponent?.player_id;
+
     // Update game state in database
     await supabase
       .from('matches')
@@ -181,23 +183,40 @@ const [gameState, setGameState] = useState<TicTacToeState>({
         game_state: newState as unknown as Database['public']['Tables']['matches']['Update']['game_state'],
         state: winner ? 'complete' : 'active',
         ended_at: winner ? new Date().toISOString() : null,
-        winner_id: winner === playerSymbol ? profile?.id : winner === 'draw' ? null : opponent?.player_id,
+        winner_id: winnerId,
       })
       .eq('id', match.id);
 
     setGameState(newState);
 
+    // Handle escrow release
     if (winner) {
-      if (winner === playerSymbol) {
-        toast({
-          title: '🎉 You Won!',
-          description: `You won $${Number(match.stake_amount) * 2}!`,
+      if (winner === 'draw') {
+        // Refund escrow for draws
+        const { data: refundResult } = await supabase.rpc('refund_escrow', {
+          _match_id: match.id
         });
-      } else if (winner === 'draw') {
+        console.log('Escrow refund result:', refundResult);
         toast({
           title: "It's a Draw!",
-          description: 'Stakes will be returned.',
+          description: 'Stakes have been returned to both players.',
         });
+      } else if (winnerId) {
+        // Release escrow to winner
+        const { data: releaseResult } = await supabase.rpc('release_escrow_to_winner', {
+          _match_id: match.id,
+          _winner_id: winnerId
+        });
+        console.log('Escrow release result:', releaseResult);
+        
+        if (winner === playerSymbol) {
+          const result = releaseResult as { winner_payout?: number } | null;
+          const payout = result?.winner_payout || (Number(match.stake_amount) * 2 * 0.95);
+          toast({
+            title: '🎉 You Won!',
+            description: `You won $${payout.toFixed(2)}! (5% platform fee applied)`,
+          });
+        }
       }
     }
   };

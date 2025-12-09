@@ -161,11 +161,33 @@ export function useMatches() {
       console.error('Error adding player:', playerError);
     }
 
-    // Deduct stake from wallet
+    // Deduct stake from wallet and add to escrow
     await supabase
       .from('profiles')
       .update({ wallet_balance: (profile.wallet_balance || 0) - stakeAmount })
       .eq('id', profile.id);
+
+    // Add to escrow
+    await supabase
+      .from('escrow')
+      .insert({
+        match_id: match.id,
+        player_id: profile.id,
+        amount: stakeAmount,
+        status: 'held',
+      });
+
+    // Record stake transaction
+    await supabase
+      .from('transactions')
+      .insert({
+        user_id: profile.id,
+        amount: stakeAmount,
+        tx_type: 'stake',
+        status: 'confirmed',
+        confirmed_at: new Date().toISOString(),
+        match_id: match.id,
+      });
 
     toast({
       title: 'Match created!',
@@ -251,11 +273,33 @@ export function useMatches() {
       .update({ state: 'active', started_at: new Date().toISOString() })
       .eq('id', matchId);
 
-    // Deduct stake
+    // Deduct stake and add to escrow
     await supabase
       .from('profiles')
       .update({ wallet_balance: (profile.wallet_balance || 0) - match.stake_amount })
       .eq('id', profile.id);
+
+    // Add to escrow
+    await supabase
+      .from('escrow')
+      .insert({
+        match_id: matchId,
+        player_id: profile.id,
+        amount: match.stake_amount,
+        status: 'held',
+      });
+
+    // Record stake transaction
+    await supabase
+      .from('transactions')
+      .insert({
+        user_id: profile.id,
+        amount: match.stake_amount,
+        tx_type: 'stake',
+        status: 'confirmed',
+        confirmed_at: new Date().toISOString(),
+        match_id: matchId,
+      });
 
     toast({
       title: 'Joined match!',
