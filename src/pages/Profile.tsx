@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { MobileLayout } from '@/components/MobileLayout';
@@ -18,8 +18,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  Trophy, Gamepad2, Coins, TrendingUp, Settings, History, 
-  Wallet, LogOut, ChevronRight, Plus, CreditCard, ArrowUpRight, Loader2, DollarSign
+  Trophy, Gamepad2, Coins, TrendingUp, History, 
+  Wallet, LogOut, ChevronRight, Plus, CreditCard, ArrowUpRight, Loader2, DollarSign, Pencil, Camera
 } from 'lucide-react';
 
 const QUICK_AMOUNTS = [10, 25, 50, 100];
@@ -28,17 +28,140 @@ export default function Profile() {
   const { user, profile, signOut, refreshProfile, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isDepositOpen, setIsDepositOpen] = useState(false);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [depositAmount, setDepositAmount] = useState('25');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  
+  // Edit form state
+  const [editDisplayName, setEditDisplayName] = useState('');
+  const [editUsername, setEditUsername] = useState('');
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
     await signOut();
     navigate('/auth');
+  };
+
+  const handleOpenEdit = () => {
+    setEditDisplayName(profile?.display_name || '');
+    setEditUsername(profile?.username || '');
+    setIsEditOpen(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profile?.id) return;
+
+    setIsProcessing(true);
+    try {
+      // Check if username is taken (if changed)
+      if (editUsername && editUsername !== profile.username) {
+        const { data: existing } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', editUsername.toLowerCase())
+          .neq('id', profile.id)
+          .maybeSingle();
+
+        if (existing) {
+          toast({
+            title: 'Username taken',
+            description: 'This username is already in use',
+            variant: 'destructive',
+          });
+          setIsProcessing(false);
+          return;
+        }
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          display_name: editDisplayName || null,
+          username: editUsername?.toLowerCase() || null,
+        })
+        .eq('id', profile.id);
+
+      if (error) throw error;
+
+      await refreshProfile();
+      toast({ title: 'Profile updated!' });
+      setIsEditOpen(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: 'Failed to update profile',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile?.id) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please select an image file',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Please select an image under 2MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      // Convert to base64 for simple storage (in production, use Supabase Storage)
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64 = event.target?.result as string;
+        
+        const { error } = await supabase
+          .from('profiles')
+          .update({ avatar_url: base64 })
+          .eq('id', profile.id);
+
+        if (error) throw error;
+
+        await refreshProfile();
+        toast({ title: 'Profile picture updated!' });
+        setIsUploading(false);
+      };
+      reader.onerror = () => {
+        throw new Error('Failed to read file');
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast({
+        title: 'Failed to upload image',
+        variant: 'destructive',
+      });
+      setIsUploading(false);
+    }
   };
 
   const handleDeposit = async () => {
@@ -206,12 +329,21 @@ export default function Profile() {
 
   return (
     <MobileLayout>
+      {/* Hidden file input for avatar upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
       {/* Header with gradient */}
       <div className="bg-gradient-to-b from-primary/20 via-primary/5 to-background">
         <header className="flex items-center justify-between px-4 py-4">
           <h1 className="font-display text-xl font-bold">Profile</h1>
-          <Button variant="ghost" size="icon">
-            <Settings className="h-5 w-5" />
+          <Button variant="ghost" size="icon" onClick={handleOpenEdit}>
+            <Pencil className="h-5 w-5" />
           </Button>
         </header>
 
@@ -220,22 +352,35 @@ export default function Profile() {
           <Card className="border-border/50 overflow-hidden">
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16 border-2 border-primary">
-                  <AvatarImage src={profile?.avatar_url || undefined} />
-                  <AvatarFallback className="bg-primary/20 text-primary font-display text-xl">
-                    {profile?.display_name?.charAt(0) || user.email?.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar 
+                    className="h-16 w-16 border-2 border-primary cursor-pointer"
+                    onClick={handleAvatarClick}
+                  >
+                    <AvatarImage src={profile?.avatar_url || undefined} />
+                    <AvatarFallback className="bg-primary/20 text-primary font-display text-xl">
+                      {profile?.display_name?.charAt(0) || profile?.username?.charAt(0) || '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <button
+                    onClick={handleAvatarClick}
+                    disabled={isUploading}
+                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary flex items-center justify-center"
+                  >
+                    {isUploading ? (
+                      <Loader2 className="h-3 w-3 text-primary-foreground animate-spin" />
+                    ) : (
+                      <Camera className="h-3 w-3 text-primary-foreground" />
+                    )}
+                  </button>
+                </div>
                 <div className="flex-1">
                   <h2 className="font-display font-bold text-lg">
-                    {profile?.display_name || user.email?.split('@')[0]}
+                    {profile?.display_name || profile?.username || 'Player'}
                   </h2>
                   {profile?.username && (
                     <p className="text-sm text-muted-foreground">@{profile.username}</p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {user.email}
-                  </p>
                 </div>
               </div>
             </CardContent>
@@ -315,7 +460,6 @@ export default function Profile() {
               {[
                 { icon: History, label: 'Match History', href: '/history' },
                 { icon: CreditCard, label: 'Transactions', href: '/transactions' },
-                { icon: Settings, label: 'Settings', href: '/settings' },
               ].map((item, index) => (
                 <Link key={item.label} to={item.href}>
                   <div className={`flex items-center justify-between p-3 ${index > 0 ? 'border-t border-border/50' : ''}`}>
@@ -341,6 +485,67 @@ export default function Profile() {
           </Button>
         </div>
       </main>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" />
+              Edit Profile
+            </DialogTitle>
+            <DialogDescription>
+              Update your display name and username
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="display-name">Display Name</Label>
+              <Input
+                id="display-name"
+                value={editDisplayName}
+                onChange={(e) => setEditDisplayName(e.target.value)}
+                placeholder="Your display name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">@</span>
+                <Input
+                  id="username"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                  placeholder="username"
+                  className="pl-7"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Used for friends to find you
+              </p>
+            </div>
+
+            <Button
+              onClick={handleSaveProfile}
+              disabled={isProcessing}
+              variant="neon"
+              className="w-full"
+              size="lg"
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Deposit Dialog */}
       <Dialog open={isDepositOpen} onOpenChange={setIsDepositOpen}>
@@ -490,7 +695,7 @@ export default function Profile() {
 
             <Button
               onClick={handleWithdraw}
-              disabled={isProcessing || !withdrawAmount || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > (profile?.wallet_balance || 0)}
+              disabled={isProcessing || !withdrawAmount || parseFloat(withdrawAmount) <= 0}
               variant="neon"
               className="w-full"
               size="lg"
