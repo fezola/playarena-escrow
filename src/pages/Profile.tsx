@@ -392,9 +392,16 @@ export default function Profile() {
         {/* Wallet Section */}
         <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Wallet className="h-5 w-5 text-primary" />
-              <span className="font-display font-bold">Wallet</span>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-primary" />
+                <span className="font-display font-bold">Wallet</span>
+              </div>
+              {profile?.wallet_address && (
+                <span className="text-xs font-mono bg-muted px-2 py-1 rounded">
+                  {profile.wallet_address}
+                </span>
+              )}
             </div>
             
             <p className="font-display text-3xl font-bold mb-1">
