@@ -326,6 +326,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          base_balance: number | null
           created_at: string
           current_streak: number
           display_name: string | null
@@ -336,6 +337,7 @@ export type Database = {
           total_losses: number
           total_wins: number
           updated_at: string
+          usdt_balance: number | null
           user_id: string
           username: string | null
           wallet_address: string | null
@@ -344,6 +346,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          base_balance?: number | null
           created_at?: string
           current_streak?: number
           display_name?: string | null
@@ -354,6 +357,7 @@ export type Database = {
           total_losses?: number
           total_wins?: number
           updated_at?: string
+          usdt_balance?: number | null
           user_id: string
           username?: string | null
           wallet_address?: string | null
@@ -362,6 +366,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          base_balance?: number | null
           created_at?: string
           current_streak?: number
           display_name?: string | null
@@ -372,6 +377,7 @@ export type Database = {
           total_losses?: number
           total_wins?: number
           updated_at?: string
+          usdt_balance?: number | null
           user_id?: string
           username?: string | null
           wallet_address?: string | null
