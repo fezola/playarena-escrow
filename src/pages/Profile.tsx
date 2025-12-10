@@ -17,8 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { createPublicClient, http, formatUnits } from 'viem';
-import { base } from 'viem/chains';
+// Balance check via RPC call
 import {
   Trophy, Gamepad2, Coins, TrendingUp, History,
   Wallet, LogOut, ChevronRight, Plus, CreditCard, ArrowUpRight, Loader2, Pencil, Camera, Copy, Check, ExternalLink, RefreshCw
@@ -109,32 +108,36 @@ export default function Profile() {
 
     setIsRefreshing(true);
     try {
-      const ERC20_ABI = [
-        {
-          constant: true,
-          inputs: [{ name: '_owner', type: 'address' }],
-          name: 'balanceOf',
-          outputs: [{ name: 'balance', type: 'uint256' }],
-          type: 'function',
-        },
-      ] as const;
-
       const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
-
-      const client = createPublicClient({
-        chain: base,
-        transport: http('https://mainnet.base.org'),
+      const RPC_URL = 'https://mainnet.base.org';
+      
+      // Encode balanceOf(address) call data
+      // Function selector for balanceOf(address) is 0x70a08231
+      const walletAddressPadded = profile.wallet_address.slice(2).toLowerCase().padStart(64, '0');
+      const callData = `0x70a08231${walletAddressPadded}`;
+      
+      // Make RPC call
+      const response = await fetch(RPC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'eth_call',
+          params: [{ to: USDC_ADDRESS, data: callData }, 'latest'],
+          id: 1,
+        }),
       });
-
-      // Check USDC balance on-chain
-      const usdcBalance = await client.readContract({
-        address: USDC_ADDRESS,
-        abi: ERC20_ABI,
-        functionName: 'balanceOf',
-        args: [profile.wallet_address as `0x${string}`],
-      });
-
-      const balanceInUsdc = parseFloat(formatUnits(usdcBalance, 6));
+      
+      const result = await response.json();
+      
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+      
+      // Parse the balance (USDC has 6 decimals)
+      const balanceHex = result.result;
+      const balanceRaw = BigInt(balanceHex);
+      const balanceInUsdc = Number(balanceRaw) / 1e6;
       const currentDbBalance = profile.wallet_balance || 0;
 
       // If on-chain balance is different, update database
