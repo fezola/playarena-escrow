@@ -17,9 +17,11 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Trophy, Gamepad2, Coins, TrendingUp, History, 
-  Wallet, LogOut, ChevronRight, Plus, CreditCard, ArrowUpRight, Loader2, Pencil, Camera, Copy, Check, ExternalLink
+import { createPublicClient, http, formatUnits } from 'viem';
+import { base } from 'viem/chains';
+import {
+  Trophy, Gamepad2, Coins, TrendingUp, History,
+  Wallet, LogOut, ChevronRight, Plus, CreditCard, ArrowUpRight, Loader2, Pencil, Camera, Copy, Check, ExternalLink, RefreshCw
 } from 'lucide-react';
 
 const SUPPORTED_TOKENS = [
@@ -43,7 +45,8 @@ export default function Profile() {
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingWallet, setIsGeneratingWallet] = useState(false);
   const [copied, setCopied] = useState(false);
-  
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   // Edit form state
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editUsername, setEditUsername] = useState('');
@@ -94,7 +97,7 @@ export default function Profile() {
 
   const copyAddress = async () => {
     if (!profile?.wallet_address) return;
-    
+
     try {
       await navigator.clipboard.writeText(profile.wallet_address);
       setCopied(true);
@@ -102,6 +105,81 @@ export default function Profile() {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast({ title: 'Failed to copy', variant: 'destructive' });
+    }
+  };
+
+  const refreshBalance = async () => {
+    if (!profile?.wallet_address || isRefreshing) return;
+
+    setIsRefreshing(true);
+    try {
+      const ERC20_ABI = [
+        {
+          constant: true,
+          inputs: [{ name: '_owner', type: 'address' }],
+          name: 'balanceOf',
+          outputs: [{ name: 'balance', type: 'uint256' }],
+          type: 'function',
+        },
+      ] as const;
+
+      const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+
+      const client = createPublicClient({
+        chain: base,
+        transport: http('https://mainnet.base.org'),
+      });
+
+      // Check USDC balance on-chain
+      const usdcBalance = await client.readContract({
+        address: USDC_ADDRESS,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf',
+        args: [profile.wallet_address as `0x${string}`],
+      });
+
+      const balanceInUsdc = parseFloat(formatUnits(usdcBalance, 6));
+      const currentDbBalance = profile.wallet_balance || 0;
+
+      // If on-chain balance is different, update database
+      if (Math.abs(balanceInUsdc - currentDbBalance) > 0.01) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({ wallet_balance: balanceInUsdc })
+          .eq('id', profile.id);
+
+        if (error) throw error;
+
+        // Refresh profile to show new balance
+        await refreshProfile();
+
+        const diff = balanceInUsdc - currentDbBalance;
+        if (diff > 0) {
+          toast({
+            title: 'Balance updated!',
+            description: `+$${diff.toFixed(2)} USDC detected`,
+          });
+        } else {
+          toast({
+            title: 'Balance updated!',
+            description: `Balance: $${balanceInUsdc.toFixed(2)} USDC`,
+          });
+        }
+      } else {
+        toast({
+          title: 'Balance up to date',
+          description: `$${balanceInUsdc.toFixed(2)} USDC`,
+        });
+      }
+    } catch (error) {
+      console.error('Error refreshing balance:', error);
+      toast({
+        title: 'Failed to refresh balance',
+        description: 'Please try again later.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -457,11 +535,22 @@ export default function Profile() {
               )}
             </div>
             
-            <p className="font-display text-3xl font-bold mb-1">
-              ${profile?.wallet_balance?.toFixed(2) || '0.00'}
-            </p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="font-display text-3xl font-bold">
+                ${profile?.wallet_balance?.toFixed(2) || '0.00'}
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={refreshBalance}
+                disabled={isRefreshing || !profile?.wallet_address}
+                className="h-8 w-8 p-0"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground mb-4">
-              Available balance
+              Available balance • Click refresh to update
             </p>
 
             <div className="grid grid-cols-2 gap-2">
