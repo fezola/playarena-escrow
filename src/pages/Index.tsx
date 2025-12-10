@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { MobileLayout } from '@/components/MobileLayout';
+import { GamePreviewDialog } from '@/components/GamePreviewDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useMatches, MatchWithPlayers } from '@/hooks/useMatches';
 import { JoinByCodeDialog } from '@/components/JoinByCodeDialog';
@@ -13,19 +14,24 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { GameType, gameTypeLabels, gameTypeIcons } from '@/types/game';
 import { 
   ChevronRight, Trophy, Users, Coins, Flame, 
-  Plus, Bell, Wallet, Ticket, Loader2
+  Plus, Bell, Wallet, Ticket
 } from 'lucide-react';
 
 const quickGames: { type: GameType; color: string }[] = [
   { type: 'tic-tac-toe', color: 'from-blue-500 to-cyan-400' },
-  { type: 'chess', color: 'from-purple-500 to-pink-400' },
-  { type: 'scrabble', color: 'from-amber-500 to-orange-400' },
+  { type: 'connect-four', color: 'from-red-500 to-yellow-400' },
+  { type: 'rock-paper-scissors', color: 'from-green-500 to-emerald-400' },
+  { type: 'wordle', color: 'from-emerald-500 to-teal-400' },
+  { type: 'checkers', color: 'from-red-600 to-rose-400' },
+  { type: 'battleship', color: 'from-slate-500 to-blue-400' },
 ];
 
 export default function Index() {
   const { user, profile, loading: authLoading } = useAuth();
   const { matches, loading: matchesLoading, joinMatch } = useMatches();
   const navigate = useNavigate();
+  const [selectedGame, setSelectedGame] = useState<GameType | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const handleJoinMatch = async (match: MatchWithPlayers) => {
     if (!user) {
@@ -41,6 +47,11 @@ export default function Index() {
 
   const handleViewMatch = (matchId: string) => {
     navigate(`/match/${matchId}`);
+  };
+
+  const handleGameClick = (gameType: GameType) => {
+    setSelectedGame(gameType);
+    setPreviewOpen(true);
   };
 
   const waitingMatches = matches.filter(m => m.state === 'waiting');
@@ -129,26 +140,29 @@ export default function Index() {
           </motion.div>
         </section>
 
-        {/* Games Row */}
+        {/* Games Row - Scrollable */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-display font-bold">Games</h2>
+            <h2 className="font-display font-bold">Quick Play</h2>
             <Link to="/games" className="text-xs text-primary flex items-center">
               All Games <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
 
-          <div className="flex gap-3">
-            {quickGames.map((game, index) => (
-              <motion.div
-                key={game.type}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex-1"
-              >
-                <Link to={user ? `/create` : '/auth'}>
-                  <Card className="overflow-hidden border-border/50 active:scale-95 transition-transform">
+          <div className="overflow-x-auto -mx-4 px-4 pb-2">
+            <div className="flex gap-3" style={{ width: 'max-content' }}>
+              {quickGames.map((game, index) => (
+                <motion.div
+                  key={game.type}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="w-24"
+                >
+                  <Card 
+                    className="overflow-hidden border-border/50 active:scale-95 transition-transform cursor-pointer"
+                    onClick={() => handleGameClick(game.type)}
+                  >
                     <div className={`h-16 bg-gradient-to-br ${game.color} flex items-center justify-center`}>
                       <span className="text-3xl">{gameTypeIcons[game.type]}</span>
                     </div>
@@ -158,9 +172,9 @@ export default function Index() {
                       </p>
                     </CardContent>
                   </Card>
-                </Link>
-              </motion.div>
-            ))}
+                </motion.div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -321,6 +335,13 @@ export default function Index() {
           </div>
         </motion.section>
       </main>
+
+      {/* Preview Dialog */}
+      <GamePreviewDialog 
+        game={selectedGame}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+      />
     </MobileLayout>
   );
 }
