@@ -65,23 +65,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select('*')
       .eq('user_id', userId)
       .single();
-    
+
     if (!error && data) {
-      // If no wallet address, generate one
-      if (!data.wallet_address) {
-        await generateWalletForUser();
-        // Refetch profile after wallet generation
-        const { data: updatedData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', userId)
-          .single();
-        if (updatedData) {
-          setProfile(updatedData as Profile);
-        }
-      } else {
-        setProfile(data as Profile);
-      }
+      // Just set the profile - don't auto-generate wallet
+      // User can manually generate wallet from Profile page if needed
+      setProfile(data as Profile);
     }
   };
 

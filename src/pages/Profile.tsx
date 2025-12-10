@@ -51,12 +51,8 @@ export default function Profile() {
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editUsername, setEditUsername] = useState('');
 
-  // Auto-generate wallet if user doesn't have one
-  useEffect(() => {
-    if (user && profile && !profile.wallet_address && !isGeneratingWallet) {
-      generateWallet();
-    }
-  }, [user, profile]);
+  // REMOVED: Auto-generate wallet - causes 404 errors when Edge Functions aren't deployed
+  // Users can manually generate wallet by clicking the "Generate Wallet" button if needed
 
   const generateWallet = async () => {
     if (isGeneratingWallet) return;
