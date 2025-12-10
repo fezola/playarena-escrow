@@ -13,19 +13,43 @@ const gameDescriptions: Record<GameType, string> = {
   'tic-tac-toe': 'Quick 1v1 strategy game. First to 3 in a row wins!',
   'chess': 'Classic battle of minds. Checkmate to claim victory.',
   'scrabble': 'Word power showdown. Highest score takes all.',
+  'connect-four': 'Drop discs to connect 4 in a row!',
+  'rock-paper-scissors': 'Classic hand game. Best of 3 wins!',
+  'wordle': 'Guess the 5-letter word in fewer tries.',
+  'checkers': 'Jump and capture all opponent pieces.',
+  'dots-and-boxes': 'Complete boxes to claim territory.',
+  'boggle': 'Find words in the letter grid.',
+  'pool': 'Sink all your balls first!',
+  'ping-pong': 'Fast-paced table tennis action.',
+  'battleship': 'Sink the enemy fleet!',
+  'trivia': 'Test your knowledge against opponents.',
 };
 
 const gameStats: Record<GameType, { time: string; skill: string }> = {
   'tic-tac-toe': { time: '~2 min', skill: 'Beginner' },
   'chess': { time: '~15 min', skill: 'Advanced' },
   'scrabble': { time: '~20 min', skill: 'Intermediate' },
+  'connect-four': { time: '~5 min', skill: 'Beginner' },
+  'rock-paper-scissors': { time: '~1 min', skill: 'Beginner' },
+  'wordle': { time: '~5 min', skill: 'Intermediate' },
+  'checkers': { time: '~10 min', skill: 'Intermediate' },
+  'dots-and-boxes': { time: '~10 min', skill: 'Beginner' },
+  'boggle': { time: '~5 min', skill: 'Intermediate' },
+  'pool': { time: '~10 min', skill: 'Intermediate' },
+  'ping-pong': { time: '~5 min', skill: 'Intermediate' },
+  'battleship': { time: '~15 min', skill: 'Intermediate' },
+  'trivia': { time: '~5 min', skill: 'Beginner' },
 };
 
 export function GameSelector({ selected, onChange }: GameSelectorProps) {
-  const games: GameType[] = ['tic-tac-toe', 'chess', 'scrabble'];
+  const games: GameType[] = [
+    'tic-tac-toe', 'connect-four', 'rock-paper-scissors', 
+    'wordle', 'checkers', 'battleship', 'trivia',
+    'chess', 'scrabble'
+  ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {games.map((game, index) => {
         const isSelected = selected === game;
         const stats = gameStats[game];
@@ -35,7 +59,7 @@ export function GameSelector({ selected, onChange }: GameSelectorProps) {
             key={game}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
+            transition={{ delay: index * 0.05 }}
           >
             <Card
               variant={isSelected ? 'neon' : 'elevated'}
@@ -45,51 +69,36 @@ export function GameSelector({ selected, onChange }: GameSelectorProps) {
               )}
               onClick={() => onChange(game)}
             >
-              {/* Selected indicator */}
               {isSelected && (
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary flex items-center justify-center"
+                  className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center"
                 >
-                  <Check className="w-4 h-4 text-primary-foreground" />
+                  <Check className="w-3 h-3 text-primary-foreground" />
                 </motion.div>
               )}
 
-              <div className="p-5">
-                {/* Icon */}
+              <div className="p-3">
                 <motion.div
-                  className="text-5xl mb-4"
+                  className="text-3xl mb-2"
                   animate={isSelected ? { scale: [1, 1.2, 1] } : {}}
-                  transition={{ duration: 0.3 }}
                 >
                   {gameTypeIcons[game]}
                 </motion.div>
-
-                {/* Name */}
-                <h3 className="font-display font-bold text-lg mb-2">
+                <h3 className="font-display font-bold text-sm mb-1">
                   {gameTypeLabels[game]}
                 </h3>
-
-                {/* Description */}
-                <p className="text-sm text-muted-foreground mb-4">
+                <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
                   {gameDescriptions[game]}
                 </p>
-
-                {/* Stats */}
-                <div className="flex gap-4 text-xs">
-                  <div>
-                    <span className="text-muted-foreground">Time: </span>
-                    <span className="text-foreground font-medium">{stats.time}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Skill: </span>
-                    <span className="text-foreground font-medium">{stats.skill}</span>
-                  </div>
+                <div className="flex gap-2 text-[10px]">
+                  <span className="text-muted-foreground">{stats.time}</span>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="text-muted-foreground">{stats.skill}</span>
                 </div>
               </div>
 
-              {/* Bottom gradient */}
               {isSelected && (
                 <motion.div
                   initial={{ opacity: 0 }}
