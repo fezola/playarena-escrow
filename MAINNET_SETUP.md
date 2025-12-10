@@ -56,19 +56,54 @@ Name: BASE_RPC_URL
 Value: https://mainnet.base.org
 ```
 
-**Recommended: Use Alchemy for Production**
+**Recommended: Use a Reliable RPC Provider for Production**
 
-For better reliability and rate limits:
+For better reliability and rate limits, choose one of these options:
 
-1. Sign up at https://www.alchemy.com
-2. Create a new app for Base Mainnet
-3. Copy your API key
-4. Update the secret:
-
+#### Option A: Public RPC (Free, No Signup)
 ```
 Name: BASE_RPC_URL
-Value: https://base-mainnet.g.alchemy.com/v2/YOUR_API_KEY
+Value: https://mainnet.base.org
 ```
+Good for: Testing, MVP, low traffic
+
+#### Option B: Ankr (Free, No Signup)
+```
+Name: BASE_RPC_URL
+Value: https://rpc.ankr.com/base
+```
+Good for: Better reliability than public RPC, still free
+
+#### Option C: Infura (Free Tier Available)
+1. Sign up at https://infura.io
+2. Create a new project for Base
+3. Copy your API key
+4. Update the secret:
+```
+Name: BASE_RPC_URL
+Value: https://base-mainnet.infura.io/v3/YOUR_API_KEY
+```
+Good for: Production, 100k requests/day free
+
+#### Option D: QuickNode (Free Tier Available)
+1. Sign up at https://www.quicknode.com
+2. Create endpoint for Base
+3. Copy your endpoint URL
+```
+Name: BASE_RPC_URL
+Value: https://your-endpoint.base.quiknode.pro/YOUR_TOKEN/
+```
+Good for: Production, professional support
+
+#### Option E: Coinbase Cloud (Base's Official Provider)
+1. Sign up at https://www.coinbase.com/cloud
+2. Create Base endpoint
+3. Copy your URL
+```
+Name: BASE_RPC_URL
+Value: https://api.developer.coinbase.com/rpc/v1/base/YOUR_API_KEY
+```
+Good for: Official Base support
 
 ---
 

@@ -11,20 +11,28 @@ openssl rand -base64 32
 
 Copy the output - you'll need it next.
 
-### Step 2: Configure Supabase
+### Step 2: Configure Supabase Edge Function Secrets
 
-Go to your Supabase Dashboard → Settings → Edge Functions → Add Secret:
+**⚠️ CRITICAL:** Edge Functions won't work without these!
 
+Go to your Supabase Dashboard → Edge Functions → Manage Secrets
+
+**Add these 3 required secrets:**
+
+#### 1. Encryption Key (CRITICAL!)
 ```
 Name: WALLET_ENCRYPTION_KEY
-Value: <paste your generated key>
+Value: <paste your generated key from Step 1>
 ```
 
-Add more secrets:
+#### 2. Network
 ```
 Name: NETWORK
 Value: base
+```
 
+#### 3. RPC URL
+```
 Name: BASE_RPC_URL
 Value: https://mainnet.base.org
 ```
@@ -37,6 +45,19 @@ Value: baseSepolia
 Name: BASE_RPC_URL
 Value: https://sepolia.base.org
 ```
+
+**Using Supabase CLI (Alternative):**
+```bash
+# Set all secrets at once
+supabase secrets set WALLET_ENCRYPTION_KEY="<your_key>"
+supabase secrets set NETWORK=base
+supabase secrets set BASE_RPC_URL=https://mainnet.base.org
+
+# Verify they're set
+supabase secrets list
+```
+
+**📚 Detailed Guide:** See `SETUP_EDGE_FUNCTION_SECRETS.md` for complete instructions
 
 ### Step 3: Deploy Edge Functions
 

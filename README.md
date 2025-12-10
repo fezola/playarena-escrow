@@ -22,31 +22,56 @@ A mobile-first PWA for playing classic games (Chess, Tic Tac Toe, Scrabble) with
 
 ## 🚀 Quick Start
 
+### ⚠️ CRITICAL: Required Setup
+
+**Before anything works, you MUST set these Supabase Edge Function secrets:**
+
+1. **WALLET_ENCRYPTION_KEY** - Generate with `openssl rand -base64 32`
+2. **NETWORK** - Set to `base` (or `baseSepolia` for testing)
+3. **BASE_RPC_URL** - Set to `https://mainnet.base.org`
+
+**Set them in:** Supabase Dashboard → Edge Functions → Manage Secrets
+
+📚 **Detailed Guide:** See [`REQUIRED_SETUP_CHECKLIST.md`](REQUIRED_SETUP_CHECKLIST.md)
+
+### Quick Setup Commands:
+
 ```bash
-# 1. Generate encryption key
-openssl rand -base64 32
+# 1. Generate and set encryption key
+ENCRYPTION_KEY=$(openssl rand -base64 32)
+echo "⚠️ BACKUP THIS KEY: $ENCRYPTION_KEY"
+supabase secrets set WALLET_ENCRYPTION_KEY="$ENCRYPTION_KEY"
 
-# 2. Configure Supabase Edge Functions secrets
-# (See QUICK_START.md for details)
+# 2. Set network and RPC
+supabase secrets set NETWORK=base
+supabase secrets set BASE_RPC_URL=https://mainnet.base.org
 
-# 3. Deploy Edge Functions
+# 3. Verify secrets are set
+supabase secrets list
+
+# 4. Deploy Edge Functions
 supabase functions deploy generate-wallet
 supabase functions deploy monitor-deposits
 supabase functions deploy process-withdrawal
 
-# 4. Set up deposit monitoring cron job
-# (See QUICK_START.md for SQL)
+# 5. Set up deposit monitoring cron job
+# (Run SQL in Supabase Dashboard - see QUICK_START.md)
 
-# 5. Configure frontend .env
+# 6. Configure frontend .env
 cp .env.example .env
 # Edit with your Supabase credentials
 
-# 6. Run!
+# 7. Run!
 npm install
 npm run dev
 ```
 
 ## 📚 Documentation
+
+### 🚨 Start Here (Required)
+- **[Required Setup Checklist](REQUIRED_SETUP_CHECKLIST.md)** - ⚠️ Must complete first!
+- **[Setup Edge Function Secrets](SETUP_EDGE_FUNCTION_SECRETS.md)** - Critical environment variables
+- **[RPC Providers Guide](RPC_PROVIDERS_GUIDE.md)** - Can't use Alchemy? See alternatives!
 
 ### Getting Started
 - **[Quick Start Guide](QUICK_START.md)** - Get running in 5 minutes
