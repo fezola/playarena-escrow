@@ -9,12 +9,13 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { RoundScoreTracker } from '@/components/RoundScoreTracker';
 import { GameInstructions, ResponsibleGamingBanner } from '@/components/GameInstructions';
+import { WinnerCardDialog } from '@/components/WinnerCardDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 import { Clock, DollarSign, Trophy, RefreshCw, ArrowLeft, Copy, Share2, Loader2 } from 'lucide-react';
-import { TicTacToeState, TicTacToeCell } from '@/types/game';
+import { TicTacToeState, TicTacToeCell, gameTypeLabels } from '@/types/game';
 
 type Match = Database['public']['Tables']['matches']['Row'];
 type MatchPlayer = Database['public']['Tables']['match_players']['Row'];
@@ -38,6 +39,7 @@ const MatchPage = () => {
   const [match, setMatch] = useState<MatchWithPlayers | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showWinnerCard, setShowWinnerCard] = useState(false);
   const [gameState, setGameState] = useState<ExtendedGameState>({
     board: Array(9).fill(null) as TicTacToeCell[],
     currentPlayer: 'X',
@@ -246,6 +248,11 @@ const MatchPage = () => {
             title: '🎉 You Won the Match!',
             description: `You won $${payout.toFixed(2)}! (5% platform fee applied)`,
           });
+
+          // Show winner card dialog after a short delay
+          setTimeout(() => {
+            setShowWinnerCard(true);
+          }, 1500);
         }
       }
     } else if (roundWinner && roundWinner !== 'draw') {
@@ -513,6 +520,21 @@ const MatchPage = () => {
           </Card>
         )}
       </main>
+
+      {/* Winner Card Dialog */}
+      {matchWinner === 'player' && match && opponent && (
+        <WinnerCardDialog
+          open={showWinnerCard}
+          onOpenChange={setShowWinnerCard}
+          winnerName={profile?.display_name || 'You'}
+          winnerAvatar={profile?.avatar_url || undefined}
+          opponentName={(opponent as any).profiles?.display_name || 'Opponent'}
+          opponentAvatar={(opponent as any).profiles?.avatar_url || undefined}
+          amountWon={(totalPrize * 0.95)}
+          gameType={gameTypeLabels[match.game_type as keyof typeof gameTypeLabels]}
+          finalScore={`${myScore} - ${opponentScore}`}
+        />
+      )}
     </MobileLayout>
   );
 };
