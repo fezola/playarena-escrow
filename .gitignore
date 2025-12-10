@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Wallet backups (CRITICAL - Never commit!)
+backups/
+*wallet*.json
+*.key
+*.pem

@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // Import viem for proper Ethereum wallet generation
 import { generatePrivateKey, privateKeyToAccount } from "https://esm.sh/viem@2.21.54/accounts";
+import { createWalletClient, createPublicClient, http, parseEther, type Address } from "https://esm.sh/viem@2.21.54";
+import { base, baseSepolia } from "https://esm.sh/viem@2.21.54/chains";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -219,11 +221,54 @@ serve(async (req) => {
 
     console.log('Wallet saved successfully for user:', user.id);
 
+    // Optional: Pre-fund wallet with ETH for gas fees
+    const platformWalletPK = Deno.env.get('PLATFORM_WALLET_PRIVATE_KEY');
+    let gasFundingTxHash: string | null = null;
+
+    if (platformWalletPK) {
+      try {
+        console.log('Pre-funding wallet with ETH for gas fees...');
+
+        const network = Deno.env.get('NETWORK') || 'base';
+        const rpcUrl = Deno.env.get('BASE_RPC_URL') || 'https://mainnet.base.org';
+        const chain = network === 'baseSepolia' ? baseSepolia : base;
+
+        // Create platform wallet client
+        const platformAccount = privateKeyToAccount(platformWalletPK as `0x${string}`);
+        const walletClient = createWalletClient({
+          account: platformAccount,
+          chain,
+          transport: http(rpcUrl),
+        });
+
+        // Send 0.0001 ETH to new user wallet for gas fees
+        // Base L2 gas is cheap: ~$0.03 per withdrawal
+        // 0.0001 ETH (~$0.30) = enough for ~10 withdrawals
+        const hash = await walletClient.sendTransaction({
+          to: wallet.address as Address,
+          value: parseEther('0.0001'), // 0.0001 ETH (~$0.30) for gas
+        });
+
+        gasFundingTxHash = hash;
+        console.log(`✅ Sent 0.0001 ETH to ${wallet.address}, tx: ${hash}`);
+
+      } catch (error) {
+        console.error('⚠️ Failed to send ETH to new wallet:', error);
+        // Don't fail wallet creation if ETH transfer fails
+        // User can still deposit USDC and use the wallet
+      }
+    } else {
+      console.log('⚠️ PLATFORM_WALLET_PRIVATE_KEY not set - skipping gas pre-funding');
+      console.log('User wallet will need ETH for gas fees to withdraw');
+    }
+
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         wallet_address: wallet.address,
-        message: 'Wallet generated successfully' 
+        message: 'Wallet generated successfully',
+        gas_funded: !!gasFundingTxHash,
+        gas_funding_tx: gasFundingTxHash,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -72,6 +72,8 @@ npm run dev
 - **[Required Setup Checklist](REQUIRED_SETUP_CHECKLIST.md)** - ⚠️ Must complete first!
 - **[Setup Edge Function Secrets](SETUP_EDGE_FUNCTION_SECRETS.md)** - Critical environment variables
 - **[RPC Providers Guide](RPC_PROVIDERS_GUIDE.md)** - Can't use Alchemy? See alternatives!
+- **[Generate Platform Wallet](GENERATE_PLATFORM_WALLET_GUIDE.md)** - ⭐ Generate secure wallet for gas fees
+- **[Platform Wallet Setup](PLATFORM_WALLET_SETUP_SUMMARY.md)** - Platform wallet overview
 
 ### Getting Started
 - **[Quick Start Guide](QUICK_START.md)** - Get running in 5 minutes
