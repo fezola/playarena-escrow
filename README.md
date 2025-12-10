@@ -1,4 +1,123 @@
-# Welcome to your Lovable project
+# PlayArena - Real-Money Multiplayer Gaming Platform
+
+A mobile-first PWA for playing classic games (Chess, Tic Tac Toe, Scrabble) with real USDC stakes on the Base blockchain.
+
+## 🎮 Features
+
+- **Real-Money Gaming**: Stake USDC, winner takes all (minus 5% platform fee)
+- **In-App Wallets**: Custodial wallets with automatic deposit detection
+- **Instant Withdrawals**: Withdraw winnings to any Ethereum address
+- **Multiplayer Matches**: Create/join games, real-time sync, secure escrow
+- **Social Features**: Friends, leaderboards, match history
+- **Mobile PWA**: Install on any device, works offline
+
+## 🏗️ Tech Stack
+
+- **Frontend**: React + TypeScript + Vite
+- **UI**: shadcn/ui + Tailwind CSS
+- **Blockchain**: Base Mainnet (Ethereum L2)
+- **Currency**: USDC (stablecoin)
+- **Backend**: Supabase (Auth, Database, Edge Functions)
+- **Wallet**: viem for Ethereum interactions
+
+## 🚀 Quick Start
+
+```bash
+# 1. Generate encryption key
+openssl rand -base64 32
+
+# 2. Configure Supabase Edge Functions secrets
+# (See QUICK_START.md for details)
+
+# 3. Deploy Edge Functions
+supabase functions deploy generate-wallet
+supabase functions deploy monitor-deposits
+supabase functions deploy process-withdrawal
+
+# 4. Set up deposit monitoring cron job
+# (See QUICK_START.md for SQL)
+
+# 5. Configure frontend .env
+cp .env.example .env
+# Edit with your Supabase credentials
+
+# 6. Run!
+npm install
+npm run dev
+```
+
+## 📚 Documentation
+
+### Getting Started
+- **[Quick Start Guide](QUICK_START.md)** - Get running in 5 minutes
+- **[Complete System Overview](COMPLETE_SYSTEM_OVERVIEW.md)** - Understand the entire system
+
+### Setup & Deployment
+- **[Wallet Setup Guide](WALLET_SETUP.md)** - Complete wallet system setup
+- **[Mainnet Setup Guide](MAINNET_SETUP.md)** - Deploy to Base mainnet
+- **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)** - Production deployment guide
+
+### Technical Details
+- **[Implementation Summary](IMPLEMENTATION_SUMMARY.md)** - Technical implementation details
+- **[Multiplayer Flow Audit](MULTIPLAYER_FLOW_AUDIT.md)** - Game flow and escrow system
+
+## 💰 How It Works
+
+### For Players:
+1. **Sign up** → Get a free Ethereum wallet
+2. **Deposit USDC** → Send to your wallet address
+3. **Create/Join match** → Stake USDC (min $1)
+4. **Play game** → Best of 1, 3, or 5 rounds
+5. **Win** → Get 95% of pot (5% platform fee)
+6. **Withdraw** → Send to any Ethereum address
+
+### Money Flow:
+```
+Deposit → Wallet Balance → Stake in Match → Escrow → Winner → Withdraw
+```
+
+### Security:
+- ✅ Real Ethereum wallets (secp256k1)
+- ✅ AES-256-GCM encryption for private keys
+- ✅ Secure escrow system
+- ✅ Real blockchain transactions
+- ✅ Automatic deposit detection
+
+## 🎯 Current Status
+
+### ✅ Fully Implemented:
+- Real Ethereum wallet generation
+- Automatic USDC deposit detection
+- Secure withdrawal processing
+- Match creation & joining
+- Escrow system with platform fee
+- Round/set scoring system
+- Real-time multiplayer sync
+- Tic Tac Toe game logic
+- Transaction history
+- Friends system
+- Leaderboards
+
+### ⏳ In Progress:
+- Chess game logic
+- Scrabble game logic
+- Gas fee optimization
+
+## 🔧 Configuration
+
+### Base Mainnet (Production):
+```
+VITE_NETWORK=base
+USDC: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+RPC: https://mainnet.base.org
+```
+
+### Base Sepolia (Testing):
+```
+VITE_NETWORK=baseSepolia
+USDC: 0x036CbD53842c5426634e7929541eC2318f3dCF7e
+RPC: https://sepolia.base.org
+```
 
 ## Project info
 

@@ -1,45 +1,120 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// Import viem for proper Ethereum wallet generation
+import { generatePrivateKey, privateKeyToAccount } from "https://esm.sh/viem@2.21.54/accounts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Simple XOR encryption for private keys
-function encryptPrivateKey(privateKey: string, encryptionKey: string): string {
-  const keyBytes = new TextEncoder().encode(encryptionKey);
-  const dataBytes = new TextEncoder().encode(privateKey);
-  const encrypted = new Uint8Array(dataBytes.length);
-  
-  for (let i = 0; i < dataBytes.length; i++) {
-    encrypted[i] = dataBytes[i] ^ keyBytes[i % keyBytes.length];
-  }
-  
-  return btoa(String.fromCharCode(...encrypted));
+// AES-256-GCM encryption for private keys (more secure than XOR)
+async function encryptPrivateKey(privateKey: string, encryptionKey: string): Promise<string> {
+  const encoder = new TextEncoder();
+
+  // Derive a proper encryption key from the password
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(encryptionKey),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveBits', 'deriveKey']
+  );
+
+  // Generate a random salt
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+
+  // Derive AES key
+  const key = await crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: salt,
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+
+  // Generate random IV
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+
+  // Encrypt the private key
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: iv },
+    key,
+    encoder.encode(privateKey)
+  );
+
+  // Combine salt + iv + encrypted data
+  const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+  combined.set(salt, 0);
+  combined.set(iv, salt.length);
+  combined.set(new Uint8Array(encrypted), salt.length + iv.length);
+
+  // Return as base64
+  return btoa(String.fromCharCode(...combined));
 }
 
-// Hash function for deriving address from private key
-async function hashBytes(data: Uint8Array): Promise<Uint8Array> {
-  // Use SubtleCrypto for SHA-256 to create deterministic address from key
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data as unknown as BufferSource);
-  return new Uint8Array(hashBuffer);
+// Decrypt private key (for withdrawals)
+async function decryptPrivateKey(encryptedData: string, encryptionKey: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  // Decode base64
+  const combined = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
+
+  // Extract salt, iv, and encrypted data
+  const salt = combined.slice(0, 16);
+  const iv = combined.slice(16, 28);
+  const encrypted = combined.slice(28);
+
+  // Derive the same key
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(encryptionKey),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveBits', 'deriveKey']
+  );
+
+  const key = await crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: salt,
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+
+  // Decrypt
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: iv },
+    key,
+    encrypted
+  );
+
+  return decoder.decode(decrypted);
 }
 
-// Generate a random Ethereum-compatible wallet
-async function generateWallet(): Promise<{ address: string; privateKey: string }> {
-  // Generate 32 random bytes for private key
-  const privateKeyBytes = crypto.getRandomValues(new Uint8Array(32));
-  const privateKey = '0x' + Array.from(privateKeyBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-  
-  // Derive address from private key (simplified - uses hash of private key)
-  // In production, this would use secp256k1 elliptic curve
-  const addressHash = await hashBytes(privateKeyBytes);
-  // Take last 20 bytes for the address
-  const addressBytes = addressHash.slice(-20);
-  const address = '0x' + Array.from(addressBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-  
-  return { address, privateKey };
+// Generate a real Ethereum wallet using viem
+function generateWallet(): { address: string; privateKey: string } {
+  // Generate a cryptographically secure private key using viem
+  const privateKey = generatePrivateKey();
+
+  // Derive the Ethereum address from the private key using secp256k1
+  const account = privateKeyToAccount(privateKey);
+
+  return {
+    address: account.address,
+    privateKey: privateKey
+  };
 }
 
 serve(async (req) => {

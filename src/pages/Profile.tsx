@@ -264,39 +264,52 @@ export default function Profile() {
     setIsProcessing(true);
 
     try {
-      const newBalance = balance - amount;
-      
-      const { error } = await supabase
-        .from('profiles')
-        .update({ wallet_balance: newBalance })
-        .eq('id', profile?.id);
+      // Get session for authorization
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error('No session');
+      }
+
+      // Call the withdrawal processing edge function
+      const { data, error } = await supabase.functions.invoke('process-withdrawal', {
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+        body: {
+          destinationAddress: withdrawAddress,
+          amount: amount,
+        },
+      });
 
       if (error) throw error;
 
-      // Record transaction with destination address
-      await supabase.from('transactions').insert({
-        user_id: profile?.id,
-        amount,
-        tx_type: 'withdrawal',
-        status: 'pending', // Pending until confirmed on-chain
-        tx_hash: withdrawAddress, // Store destination address
-      });
+      if (data?.success) {
+        await refreshProfile();
 
-      await refreshProfile();
-      
-      toast({
-        title: 'Withdrawal initiated!',
-        description: `$${amount.toFixed(2)} will be sent to ${withdrawAddress.slice(0, 6)}...${withdrawAddress.slice(-4)}`,
-      });
-      
-      setIsWithdrawOpen(false);
-      setWithdrawAmount('');
-      setWithdrawAddress('');
+        toast({
+          title: 'Withdrawal successful!',
+          description: `$${amount.toFixed(2)} sent to ${withdrawAddress.slice(0, 6)}...${withdrawAddress.slice(-4)}`,
+        });
+
+        // Show transaction hash
+        if (data.txHash) {
+          console.log('Transaction hash:', data.txHash);
+          toast({
+            title: 'Transaction confirmed',
+            description: `TX: ${data.txHash.slice(0, 10)}...`,
+          });
+        }
+
+        setIsWithdrawOpen(false);
+        setWithdrawAmount('');
+        setWithdrawAddress('');
+      }
     } catch (error) {
       console.error('Withdraw error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Something went wrong';
       toast({
         title: 'Withdrawal failed',
-        description: 'Something went wrong. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
