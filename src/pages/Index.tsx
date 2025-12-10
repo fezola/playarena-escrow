@@ -24,6 +24,13 @@ const quickGames: { type: GameType; color: string }[] = [
   { type: 'wordle', color: 'from-emerald-500 to-teal-400' },
   { type: 'checkers', color: 'from-red-600 to-rose-400' },
   { type: 'battleship', color: 'from-slate-500 to-blue-400' },
+  { type: 'trivia', color: 'from-purple-500 to-pink-400' },
+  { type: 'chess', color: 'from-gray-600 to-gray-400' },
+  { type: 'scrabble', color: 'from-amber-500 to-orange-400' },
+  { type: 'dots-and-boxes', color: 'from-indigo-500 to-violet-400' },
+  { type: 'boggle', color: 'from-lime-500 to-green-400' },
+  { type: 'pool', color: 'from-emerald-600 to-cyan-400' },
+  { type: 'ping-pong', color: 'from-orange-500 to-red-400' },
 ];
 
 export default function Index() {

@@ -45,7 +45,8 @@ export function GameSelector({ selected, onChange }: GameSelectorProps) {
   const games: GameType[] = [
     'tic-tac-toe', 'connect-four', 'rock-paper-scissors', 
     'wordle', 'checkers', 'battleship', 'trivia',
-    'chess', 'scrabble'
+    'chess', 'scrabble', 'dots-and-boxes', 'boggle', 
+    'pool', 'ping-pong'
   ];
 
   return (
