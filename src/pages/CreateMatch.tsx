@@ -24,6 +24,7 @@ const CreateMatch = () => {
   const [gameType, setGameType] = useState<GameType>('tic-tac-toe');
   const [stakeAmount, setStakeAmount] = useState(25);
   const [rounds, setRounds] = useState(1);
+  const [currency, setCurrency] = useState<'BASE' | 'USDC' | 'USDT'>('USDC');
   const [isCreating, setIsCreating] = useState(false);
 
   // Redirect if not logged in
@@ -35,8 +36,8 @@ const CreateMatch = () => {
   const handleCreate = async () => {
     setIsCreating(true);
 
-    const match = await createMatch(gameType, stakeAmount, rounds);
-    
+    const match = await createMatch(gameType, stakeAmount, rounds, currency);
+
     setIsCreating(false);
 
     if (match) {
@@ -119,6 +120,36 @@ const CreateMatch = () => {
               <div>
                 <Label className="text-sm mb-3 block text-muted-foreground">Stake Amount (per player)</Label>
                 <StakeInput value={stakeAmount} onChange={setStakeAmount} />
+              </div>
+
+              <div>
+                <Label className="text-sm mb-3 block text-muted-foreground">Currency</Label>
+                <RadioGroup
+                  value={currency}
+                  onValueChange={(v) => setCurrency(v as 'BASE' | 'USDC' | 'USDT')}
+                  className="grid grid-cols-3 gap-3"
+                >
+                  {[
+                    { value: 'BASE', label: 'BASE', balance: (profile as any)?.base_balance || 0 },
+                    { value: 'USDC', label: 'USDC', balance: profile?.wallet_balance || 0 },
+                    { value: 'USDT', label: 'USDT', balance: (profile as any)?.usdt_balance || 0 },
+                  ].map((option) => (
+                    <div key={option.value}>
+                      <RadioGroupItem
+                        value={option.value}
+                        id={`currency-${option.value}`}
+                        className="peer sr-only"
+                      />
+                      <Label
+                        htmlFor={`currency-${option.value}`}
+                        className="flex flex-col items-center justify-center p-3 rounded-lg border-2 border-muted bg-popover hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 cursor-pointer transition-all text-sm"
+                      >
+                        <span className="font-display font-bold">{option.label}</span>
+                        <span className="text-xs text-muted-foreground mt-1">${option.balance.toFixed(2)}</span>
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
               </div>
 
               <div>

@@ -103,11 +103,22 @@ export function JoinByCodeDialog({ children }: JoinByCodeDialogProps) {
         return;
       }
 
-      // Check balance
-      if ((profile?.wallet_balance || 0) < match.stake_amount) {
+      // Check balance for the match currency
+      const matchCurrency = match.currency || 'USDC';
+      let userBalance = 0;
+
+      if (matchCurrency === 'USDC') {
+        userBalance = profile?.wallet_balance || 0;
+      } else if (matchCurrency === 'BASE') {
+        userBalance = (profile as any)?.base_balance || 0;
+      } else if (matchCurrency === 'USDT') {
+        userBalance = (profile as any)?.usdt_balance || 0;
+      }
+
+      if (userBalance < match.stake_amount) {
         toast({
           title: 'Insufficient balance',
-          description: `You need $${match.stake_amount} to join. Add funds first.`,
+          description: `You need $${match.stake_amount} ${matchCurrency}. You have $${userBalance.toFixed(2)} ${matchCurrency}.`,
           variant: 'destructive',
         });
         setLoading(false);
@@ -153,23 +164,33 @@ export function JoinByCodeDialog({ children }: JoinByCodeDialogProps) {
         })
         .eq('id', invite.id);
 
-      // Deduct stake and add to escrow
+      // Deduct stake from correct currency balance
+      const updateData: any = {};
+      if (matchCurrency === 'USDC') {
+        updateData.wallet_balance = userBalance - match.stake_amount;
+      } else if (matchCurrency === 'BASE') {
+        updateData.base_balance = userBalance - match.stake_amount;
+      } else if (matchCurrency === 'USDT') {
+        updateData.usdt_balance = userBalance - match.stake_amount;
+      }
+
       await supabase
         .from('profiles')
-        .update({ wallet_balance: (profile?.wallet_balance || 0) - match.stake_amount })
+        .update(updateData)
         .eq('id', profile?.id);
 
-      // Add to escrow
+      // Add to escrow with currency
       await supabase
         .from('escrow')
         .insert({
           match_id: match.id,
           player_id: profile?.id,
           amount: match.stake_amount,
+          currency: matchCurrency,
           status: 'held',
         });
 
-      // Record stake transaction
+      // Record stake transaction with currency
       await supabase
         .from('transactions')
         .insert({
@@ -179,6 +200,7 @@ export function JoinByCodeDialog({ children }: JoinByCodeDialogProps) {
           status: 'confirmed',
           confirmed_at: new Date().toISOString(),
           match_id: match.id,
+          currency: matchCurrency,
         });
 
       toast({
