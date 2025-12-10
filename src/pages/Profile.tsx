@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { MobileLayout } from '@/components/MobileLayout';
@@ -19,10 +19,13 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Trophy, Gamepad2, Coins, TrendingUp, History, 
-  Wallet, LogOut, ChevronRight, Plus, CreditCard, ArrowUpRight, Loader2, DollarSign, Pencil, Camera
+  Wallet, LogOut, ChevronRight, Plus, CreditCard, ArrowUpRight, Loader2, Pencil, Camera, Copy, Check, ExternalLink
 } from 'lucide-react';
 
-const QUICK_AMOUNTS = [10, 25, 50, 100];
+const SUPPORTED_TOKENS = [
+  { symbol: 'USDC', name: 'USD Coin', network: 'Base' },
+  { symbol: 'USDT', name: 'Tether', network: 'Base' },
+];
 
 export default function Profile() {
   const { user, profile, signOut, refreshProfile, loading } = useAuth();
@@ -34,14 +37,73 @@ export default function Profile() {
   const [isDepositOpen, setIsDepositOpen] = useState(false);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [depositAmount, setDepositAmount] = useState('25');
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawAddress, setWithdrawAddress] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isGeneratingWallet, setIsGeneratingWallet] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   // Edit form state
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editUsername, setEditUsername] = useState('');
+
+  // Auto-generate wallet if user doesn't have one
+  useEffect(() => {
+    if (user && profile && !profile.wallet_address && !isGeneratingWallet) {
+      generateWallet();
+    }
+  }, [user, profile]);
+
+  const generateWallet = async () => {
+    if (isGeneratingWallet) return;
+    
+    setIsGeneratingWallet(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error('No session');
+      }
+
+      const { data, error } = await supabase.functions.invoke('generate-wallet', {
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        await refreshProfile();
+        toast({
+          title: 'Wallet created!',
+          description: 'Your deposit address is ready.',
+        });
+      }
+    } catch (error) {
+      console.error('Error generating wallet:', error);
+      toast({
+        title: 'Failed to create wallet',
+        description: 'Please try again later.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGeneratingWallet(false);
+    }
+  };
+
+  const copyAddress = async () => {
+    if (!profile?.wallet_address) return;
+    
+    try {
+      await navigator.clipboard.writeText(profile.wallet_address);
+      setCopied(true);
+      toast({ title: 'Address copied!' });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: 'Failed to copy', variant: 'destructive' });
+    }
+  };
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -164,71 +226,22 @@ export default function Profile() {
     }
   };
 
-  const handleDeposit = async () => {
-    const amount = parseFloat(depositAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast({
-        title: 'Invalid amount',
-        description: 'Please enter a valid amount greater than 0',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (amount > 1000) {
-      toast({
-        title: 'Amount too high',
-        description: 'Maximum deposit is $1000',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsProcessing(true);
-
-    try {
-      const newBalance = (profile?.wallet_balance || 0) + amount;
-      
-      const { error } = await supabase
-        .from('profiles')
-        .update({ wallet_balance: newBalance })
-        .eq('id', profile?.id);
-
-      if (error) throw error;
-
-      // Record transaction
-      await supabase.from('transactions').insert({
-        user_id: profile?.id,
-        amount,
-        tx_type: 'deposit',
-        status: 'confirmed',
-        confirmed_at: new Date().toISOString(),
-      });
-
-      await refreshProfile();
-      
-      toast({
-        title: 'Deposit successful!',
-        description: `$${amount.toFixed(2)} has been added to your wallet.`,
-      });
-      
-      setIsDepositOpen(false);
-      setDepositAmount('25');
-    } catch (error) {
-      console.error('Deposit error:', error);
-      toast({
-        title: 'Deposit failed',
-        description: 'Something went wrong. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+  const isValidEthAddress = (address: string): boolean => {
+    return /^0x[a-fA-F0-9]{40}$/.test(address);
   };
 
   const handleWithdraw = async () => {
     const amount = parseFloat(withdrawAmount);
     const balance = profile?.wallet_balance || 0;
+
+    if (!isValidEthAddress(withdrawAddress)) {
+      toast({
+        title: 'Invalid wallet address',
+        description: 'Please enter a valid Ethereum address (0x...)',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     if (isNaN(amount) || amount <= 0) {
       toast({
@@ -260,24 +273,25 @@ export default function Profile() {
 
       if (error) throw error;
 
-      // Record transaction
+      // Record transaction with destination address
       await supabase.from('transactions').insert({
         user_id: profile?.id,
         amount,
         tx_type: 'withdrawal',
-        status: 'confirmed',
-        confirmed_at: new Date().toISOString(),
+        status: 'pending', // Pending until confirmed on-chain
+        tx_hash: withdrawAddress, // Store destination address
       });
 
       await refreshProfile();
       
       toast({
-        title: 'Withdrawal successful!',
-        description: `$${amount.toFixed(2)} has been withdrawn.`,
+        title: 'Withdrawal initiated!',
+        description: `$${amount.toFixed(2)} will be sent to ${withdrawAddress.slice(0, 6)}...${withdrawAddress.slice(-4)}`,
       });
       
       setIsWithdrawOpen(false);
       setWithdrawAmount('');
+      setWithdrawAddress('');
     } catch (error) {
       console.error('Withdraw error:', error);
       toast({
@@ -326,6 +340,10 @@ export default function Profile() {
       </MobileLayout>
     );
   }
+
+  const truncatedAddress = profile?.wallet_address 
+    ? `${profile.wallet_address.slice(0, 6)}...${profile.wallet_address.slice(-4)}`
+    : null;
 
   return (
     <MobileLayout>
@@ -397,10 +415,32 @@ export default function Profile() {
                 <Wallet className="h-5 w-5 text-primary" />
                 <span className="font-display font-bold">Wallet</span>
               </div>
-              {profile?.wallet_address && (
-                <span className="text-xs font-mono bg-muted px-2 py-1 rounded">
-                  {profile.wallet_address}
-                </span>
+              {isGeneratingWallet ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Creating wallet...
+                </div>
+              ) : truncatedAddress ? (
+                <button 
+                  onClick={copyAddress}
+                  className="flex items-center gap-1 text-xs font-mono bg-muted px-2 py-1 rounded hover:bg-muted/80 transition-colors"
+                >
+                  {truncatedAddress}
+                  {copied ? (
+                    <Check className="h-3 w-3 text-success" />
+                  ) : (
+                    <Copy className="h-3 w-3" />
+                  )}
+                </button>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={generateWallet}
+                  disabled={isGeneratingWallet}
+                >
+                  Create Wallet
+                </Button>
               )}
             </div>
             
@@ -417,9 +457,10 @@ export default function Profile() {
                 size="sm" 
                 className="gap-1"
                 onClick={() => setIsDepositOpen(true)}
+                disabled={!profile?.wallet_address}
               >
                 <Plus className="h-4 w-4" />
-                Add Funds
+                Deposit
               </Button>
               <Button 
                 variant="outline" 
@@ -554,97 +595,83 @@ export default function Profile() {
         </DialogContent>
       </Dialog>
 
-      {/* Deposit Dialog */}
+      {/* Deposit Dialog - Shows wallet address for receiving */}
       <Dialog open={isDepositOpen} onOpenChange={setIsDepositOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-primary" />
-              Add Funds
+              <Plus className="h-5 w-5 text-primary" />
+              Deposit Funds
             </DialogTitle>
             <DialogDescription>
-              Add funds to your PlayArena wallet to start playing
+              Send USDC or USDT to your wallet address
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            {/* Quick amounts */}
-            <div className="grid grid-cols-4 gap-2">
-              {QUICK_AMOUNTS.map((amount) => (
-                <Button
-                  key={amount}
-                  variant={depositAmount === String(amount) ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setDepositAmount(String(amount))}
-                  className="font-display"
-                >
-                  ${amount}
-                </Button>
-              ))}
-            </div>
-
-            {/* Custom amount */}
+            {/* Supported tokens */}
             <div className="space-y-2">
-              <Label htmlFor="deposit-amount">Custom amount</Label>
-              <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="deposit-amount"
-                  type="number"
-                  min="1"
-                  max="1000"
-                  step="0.01"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  className="pl-9 font-display text-lg"
-                  placeholder="0.00"
-                />
+              <Label>Supported Tokens (Base Network)</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {SUPPORTED_TOKENS.map((token) => (
+                  <Card key={token.symbol} className="border-border/50">
+                    <CardContent className="p-3 text-center">
+                      <p className="font-display font-bold">{token.symbol}</p>
+                      <p className="text-xs text-muted-foreground">{token.name}</p>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </div>
 
-            {/* Summary */}
-            <Card className="border-border/50 bg-muted/50">
+            {/* Wallet address */}
+            <div className="space-y-2">
+              <Label>Your Deposit Address</Label>
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-mono text-xs break-all">
+                      {profile?.wallet_address}
+                    </p>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={copyAddress}
+                      className="shrink-0"
+                    >
+                      {copied ? (
+                        <Check className="h-4 w-4 text-success" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Instructions */}
+            <Card className="border-warning/30 bg-warning/5">
               <CardContent className="p-3 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Current balance</span>
-                  <span>${profile?.wallet_balance?.toFixed(2) || '0.00'}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Adding</span>
-                  <span className="text-success">+${parseFloat(depositAmount || '0').toFixed(2)}</span>
-                </div>
-                <div className="border-t border-border pt-2 flex justify-between font-medium">
-                  <span>New balance</span>
-                  <span className="text-primary font-display">
-                    ${((profile?.wallet_balance || 0) + parseFloat(depositAmount || '0')).toFixed(2)}
-                  </span>
-                </div>
+                <p className="text-sm font-medium text-warning">Important</p>
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  <li>• Only send USDC or USDT on the <strong>Base network</strong></li>
+                  <li>• Sending other tokens may result in permanent loss</li>
+                  <li>• Deposits typically take 1-5 minutes to confirm</li>
+                  <li>• Your balance will update automatically</li>
+                </ul>
               </CardContent>
             </Card>
 
+            {/* External wallet link */}
             <Button
-              onClick={handleDeposit}
-              disabled={isProcessing || !depositAmount || parseFloat(depositAmount) <= 0}
-              variant="neon"
+              variant="outline"
               className="w-full"
-              size="lg"
+              onClick={() => window.open(`https://basescan.org/address/${profile?.wallet_address}`, '_blank')}
             >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add ${parseFloat(depositAmount || '0').toFixed(2)}
-                </>
-              )}
+              <ExternalLink className="h-4 w-4 mr-2" />
+              View on BaseScan
             </Button>
-
-            <p className="text-xs text-center text-muted-foreground">
-              Demo mode: Funds are simulated for testing
-            </p>
           </div>
         </DialogContent>
       </Dialog>
@@ -658,7 +685,7 @@ export default function Profile() {
               Withdraw Funds
             </DialogTitle>
             <DialogDescription>
-              Withdraw your earnings from PlayArena
+              Withdraw your earnings to an external wallet
             </DialogDescription>
           </DialogHeader>
 
@@ -672,11 +699,26 @@ export default function Profile() {
               </CardContent>
             </Card>
 
+            {/* Destination address */}
+            <div className="space-y-2">
+              <Label htmlFor="withdraw-address">Destination Wallet Address</Label>
+              <Input
+                id="withdraw-address"
+                value={withdrawAddress}
+                onChange={(e) => setWithdrawAddress(e.target.value)}
+                placeholder="0x..."
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the Base network wallet address to receive funds
+              </p>
+            </div>
+
             {/* Withdraw amount */}
             <div className="space-y-2">
-              <Label htmlFor="withdraw-amount">Withdraw amount</Label>
+              <Label htmlFor="withdraw-amount">Amount (USDC)</Label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                 <Input
                   id="withdraw-amount"
                   type="number"
@@ -685,11 +727,11 @@ export default function Profile() {
                   step="0.01"
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
-                  className="pl-9 font-display text-lg"
+                  className="pl-7 font-display text-lg"
                   placeholder="0.00"
                 />
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-end">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -700,9 +742,18 @@ export default function Profile() {
               </div>
             </div>
 
+            {/* Warning */}
+            <Card className="border-warning/30 bg-warning/5">
+              <CardContent className="p-3">
+                <p className="text-xs text-muted-foreground">
+                  Withdrawals are processed on the Base network. Please double-check the destination address as transactions cannot be reversed.
+                </p>
+              </CardContent>
+            </Card>
+
             <Button
               onClick={handleWithdraw}
-              disabled={isProcessing || !withdrawAmount || parseFloat(withdrawAmount) <= 0}
+              disabled={isProcessing || !withdrawAmount || parseFloat(withdrawAmount) <= 0 || !withdrawAddress}
               variant="neon"
               className="w-full"
               size="lg"
@@ -719,10 +770,6 @@ export default function Profile() {
                 </>
               )}
             </Button>
-
-            <p className="text-xs text-center text-muted-foreground">
-              Demo mode: Withdrawals are simulated for testing
-            </p>
           </div>
         </DialogContent>
       </Dialog>

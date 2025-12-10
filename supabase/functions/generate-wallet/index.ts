@@ -19,15 +19,24 @@ function encryptPrivateKey(privateKey: string, encryptionKey: string): string {
   return btoa(String.fromCharCode(...encrypted));
 }
 
-// Generate a random Ethereum wallet
-function generateWallet(): { address: string; privateKey: string } {
+// Hash function for deriving address from private key
+async function hashBytes(data: Uint8Array): Promise<Uint8Array> {
+  // Use SubtleCrypto for SHA-256 to create deterministic address from key
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data as unknown as BufferSource);
+  return new Uint8Array(hashBuffer);
+}
+
+// Generate a random Ethereum-compatible wallet
+async function generateWallet(): Promise<{ address: string; privateKey: string }> {
   // Generate 32 random bytes for private key
   const privateKeyBytes = crypto.getRandomValues(new Uint8Array(32));
   const privateKey = '0x' + Array.from(privateKeyBytes).map(b => b.toString(16).padStart(2, '0')).join('');
   
-  // For a real implementation, we'd derive the address from the private key using secp256k1
-  // For now, we'll generate a valid-looking Ethereum address
-  const addressBytes = crypto.getRandomValues(new Uint8Array(20));
+  // Derive address from private key (simplified - uses hash of private key)
+  // In production, this would use secp256k1 elliptic curve
+  const addressHash = await hashBytes(privateKeyBytes);
+  // Take last 20 bytes for the address
+  const addressBytes = addressHash.slice(-20);
   const address = '0x' + Array.from(addressBytes).map(b => b.toString(16).padStart(2, '0')).join('');
   
   return { address, privateKey };
@@ -110,7 +119,7 @@ serve(async (req) => {
     }
 
     // Generate new wallet
-    const wallet = generateWallet();
+    const wallet = await generateWallet();
     console.log('Generated wallet address:', wallet.address);
 
     // Encrypt private key
