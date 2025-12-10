@@ -1,40 +1,57 @@
-import { createPublicClient, http, formatEther } from 'viem';
+import { createPublicClient, http, formatEther, formatUnits } from 'viem';
 import { base, baseSepolia } from 'viem/chains';
 
-const PLATFORM_WALLET = '0xc5B4c3D069C5C8eae7f9486C014E664Fcfd26F96';
+// ERC20 ABI for balanceOf
+const ERC20_ABI = [
+  {
+    constant: true,
+    inputs: [{ name: '_owner', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: 'balance', type: 'uint256' }],
+    type: 'function',
+  },
+] as const;
+
+const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+const YOUR_WALLET = '0x7bf933dd6bacc4319c326c919f271213ebcd6bb6';
 
 async function checkBalance() {
-  console.log('\n🔍 Checking Platform Wallet Balance...\n');
-  console.log(`Address: ${PLATFORM_WALLET}\n`);
+  console.log('\n🔍 Checking Your Wallet Balance...\n');
+  console.log(`Address: ${YOUR_WALLET}\n`);
 
-  const networks = [
-    { name: 'Base Mainnet', chain: base, rpc: 'https://mainnet.base.org' },
-    { name: 'Base Sepolia', chain: baseSepolia, rpc: 'https://sepolia.base.org' },
-  ];
+  try {
+    const client = createPublicClient({
+      chain: base,
+      transport: http('https://mainnet.base.org'),
+    });
 
-  for (const network of networks) {
-    try {
-      const client = createPublicClient({
-        chain: network.chain,
-        transport: http(network.rpc),
-      });
+    // Check BASE balance
+    const baseBalance = await client.getBalance({ address: YOUR_WALLET });
+    const balanceInBase = formatEther(baseBalance);
+    const baseInUsd = (parseFloat(balanceInBase) * 3000).toFixed(2);
 
-      const balance = await client.getBalance({ address: PLATFORM_WALLET });
-      const balanceInEth = formatEther(balance);
-      const balanceInUsd = (parseFloat(balanceInEth) * 3000).toFixed(2);
+    console.log('Base Mainnet:');
+    console.log(`  BASE: ${balanceInBase} (~$${baseInUsd})`);
 
-      console.log(`${network.name}:`);
-      console.log(`  ${balanceInEth} ETH (~$${balanceInUsd})`);
-      
-      if (parseFloat(balanceInEth) > 0) {
-        const usersCanFund = Math.floor(parseFloat(balanceInEth) / 0.0001);
-        console.log(`  Can fund ~${usersCanFund} users (0.0001 ETH each)`);
-      }
-      console.log('');
-    } catch (error) {
-      console.log(`${network.name}: Error checking balance`);
-      console.log('');
-    }
+    // Check USDC balance
+    const usdcBalance = await client.readContract({
+      address: USDC_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: [YOUR_WALLET],
+    });
+    const balanceInUsdc = formatUnits(usdcBalance, 6);
+
+    console.log(`  USDC: ${balanceInUsdc} (~$${balanceInUsdc})`);
+    console.log('');
+
+    // Summary
+    const totalUsd = parseFloat(baseInUsd) + parseFloat(balanceInUsdc);
+    console.log(`Total Value: ~$${totalUsd.toFixed(2)}`);
+    console.log('');
+
+  } catch (error) {
+    console.log('Error checking balance:', error);
   }
 }
 
