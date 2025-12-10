@@ -1,85 +1,16 @@
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Button } from '@/components/ui/button';
+import { Wallet } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export function WalletConnect() {
+  const navigate = useNavigate();
+  
+  // This component is not used since we use email/social auth
+  // Keeping it as a redirect to profile for wallet management
   return (
-    <ConnectButton.Custom>
-      {({
-        account,
-        chain,
-        openAccountModal,
-        openChainModal,
-        openConnectModal,
-        authenticationStatus,
-        mounted,
-      }) => {
-        const ready = mounted && authenticationStatus !== 'loading';
-        const connected =
-          ready &&
-          account &&
-          chain &&
-          (!authenticationStatus || authenticationStatus === 'authenticated');
-
-        return (
-          <div
-            {...(!ready && {
-              'aria-hidden': true,
-              style: {
-                opacity: 0,
-                pointerEvents: 'none',
-                userSelect: 'none',
-              },
-            })}
-          >
-            {(() => {
-              if (!connected) {
-                return (
-                  <Button onClick={openConnectModal} variant="neon" size="lg">
-                    Connect Wallet
-                  </Button>
-                );
-              }
-
-              if (chain.unsupported) {
-                return (
-                  <Button onClick={openChainModal} variant="destructive">
-                    Wrong Network
-                  </Button>
-                );
-              }
-
-              return (
-                <div className="flex items-center gap-3">
-                  <Button
-                    onClick={openChainModal}
-                    variant="glass"
-                    size="sm"
-                    className="hidden sm:flex"
-                  >
-                    {chain.hasIcon && chain.iconUrl && (
-                      <img
-                        alt={chain.name ?? 'Chain icon'}
-                        src={chain.iconUrl}
-                        className="w-4 h-4 rounded-full"
-                      />
-                    )}
-                    {chain.name}
-                  </Button>
-
-                  <Button onClick={openAccountModal} variant="outline" size="sm">
-                    {account.displayName}
-                    {account.displayBalance && (
-                      <span className="ml-2 text-muted-foreground">
-                        {account.displayBalance}
-                      </span>
-                    )}
-                  </Button>
-                </div>
-              );
-            })()}
-          </div>
-        );
-      }}
-    </ConnectButton.Custom>
+    <Button onClick={() => navigate('/profile')} variant="outline" size="sm">
+      <Wallet className="h-4 w-4 mr-2" />
+      Wallet
+    </Button>
   );
 }
