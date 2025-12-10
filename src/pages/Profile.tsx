@@ -24,8 +24,9 @@ import {
 } from 'lucide-react';
 
 const SUPPORTED_TOKENS = [
-  { symbol: 'USDC', name: 'USD Coin', network: 'Base' },
-  { symbol: 'USDT', name: 'Tether', network: 'Base' },
+  { symbol: 'USDC', name: 'USD Coin', network: 'Base', color: 'text-blue-500' },
+  { symbol: 'USDT', name: 'Tether', network: 'Base', color: 'text-green-500' },
+  { symbol: 'BASE', name: 'Base ETH', network: 'Base', color: 'text-primary' },
 ];
 
 export default function Profile() {
@@ -108,66 +109,87 @@ export default function Profile() {
 
     setIsRefreshing(true);
     try {
-      const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
       const RPC_URL = 'https://mainnet.base.org';
+      const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+      const USDT_ADDRESS = '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2';
       
       // Encode balanceOf(address) call data
-      // Function selector for balanceOf(address) is 0x70a08231
       const walletAddressPadded = profile.wallet_address.slice(2).toLowerCase().padStart(64, '0');
       const callData = `0x70a08231${walletAddressPadded}`;
       
-      // Make RPC call
-      const response = await fetch(RPC_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          method: 'eth_call',
-          params: [{ to: USDC_ADDRESS, data: callData }, 'latest'],
-          id: 1,
-        }),
-      });
+      // Batch RPC calls for all balances
+      const [usdcRes, usdtRes, baseRes] = await Promise.all([
+        // USDC balance
+        fetch(RPC_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'eth_call',
+            params: [{ to: USDC_ADDRESS, data: callData }, 'latest'],
+            id: 1,
+          }),
+        }).then(r => r.json()),
+        // USDT balance
+        fetch(RPC_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'eth_call',
+            params: [{ to: USDT_ADDRESS, data: callData }, 'latest'],
+            id: 2,
+          }),
+        }).then(r => r.json()),
+        // BASE (native ETH) balance
+        fetch(RPC_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'eth_getBalance',
+            params: [profile.wallet_address, 'latest'],
+            id: 3,
+          }),
+        }).then(r => r.json()),
+      ]);
       
-      const result = await response.json();
+      // Parse balances
+      const usdcBalance = usdcRes.result ? Number(BigInt(usdcRes.result)) / 1e6 : 0;
+      const usdtBalance = usdtRes.result ? Number(BigInt(usdtRes.result)) / 1e6 : 0;
+      const baseBalance = baseRes.result ? Number(BigInt(baseRes.result)) / 1e18 : 0;
       
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-      
-      // Parse the balance (USDC has 6 decimals)
-      const balanceHex = result.result;
-      const balanceRaw = BigInt(balanceHex);
-      const balanceInUsdc = Number(balanceRaw) / 1e6;
-      const currentDbBalance = profile.wallet_balance || 0;
+      const currentUsdc = (profile as any).wallet_balance || 0;
+      const currentUsdt = (profile as any).usdt_balance || 0;
+      const currentBase = (profile as any).base_balance || 0;
 
-      // If on-chain balance is different, update database
-      if (Math.abs(balanceInUsdc - currentDbBalance) > 0.01) {
+      // Check if any balance changed
+      const usdcChanged = Math.abs(usdcBalance - currentUsdc) > 0.001;
+      const usdtChanged = Math.abs(usdtBalance - currentUsdt) > 0.001;
+      const baseChanged = Math.abs(baseBalance - currentBase) > 0.000001;
+
+      if (usdcChanged || usdtChanged || baseChanged) {
         const { error } = await supabase
           .from('profiles')
-          .update({ wallet_balance: balanceInUsdc })
+          .update({ 
+            wallet_balance: usdcBalance,
+            usdt_balance: usdtBalance,
+            base_balance: baseBalance,
+          })
           .eq('id', profile.id);
 
         if (error) throw error;
 
-        // Refresh profile to show new balance
         await refreshProfile();
-
-        const diff = balanceInUsdc - currentDbBalance;
-        if (diff > 0) {
-          toast({
-            title: 'Balance updated!',
-            description: `+$${diff.toFixed(2)} USDC detected`,
-          });
-        } else {
-          toast({
-            title: 'Balance updated!',
-            description: `Balance: $${balanceInUsdc.toFixed(2)} USDC`,
-          });
-        }
+        
+        toast({
+          title: 'Balances updated!',
+          description: `USDC: $${usdcBalance.toFixed(2)} | USDT: $${usdtBalance.toFixed(2)} | BASE: ${baseBalance.toFixed(6)}`,
+        });
       } else {
         toast({
-          title: 'Balance up to date',
-          description: `$${balanceInUsdc.toFixed(2)} USDC`,
+          title: 'Balances up to date',
+          description: `USDC: $${usdcBalance.toFixed(2)} | USDT: $${usdtBalance.toFixed(2)}`,
         });
       }
     } catch (error) {
@@ -534,9 +556,36 @@ export default function Profile() {
               )}
             </div>
             
-            <div className="flex items-center justify-between mb-1">
-              <p className="font-display text-3xl font-bold">
-                ${profile?.wallet_balance?.toFixed(2) || '0.00'}
+            {/* Multi-token balances */}
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-blue-500/10">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold text-white">$</div>
+                  <span className="text-sm font-medium">USDC</span>
+                </div>
+                <span className="font-display font-bold">${((profile as any)?.wallet_balance || 0).toFixed(2)}</span>
+              </div>
+              
+              <div className="flex items-center justify-between p-2 rounded-lg bg-green-500/10">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-xs font-bold text-white">₮</div>
+                  <span className="text-sm font-medium">USDT</span>
+                </div>
+                <span className="font-display font-bold">${((profile as any)?.usdt_balance || 0).toFixed(2)}</span>
+              </div>
+              
+              <div className="flex items-center justify-between p-2 rounded-lg bg-primary/10">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground">Ξ</div>
+                  <span className="text-sm font-medium">BASE</span>
+                </div>
+                <span className="font-display font-bold">{((profile as any)?.base_balance || 0).toFixed(6)} ETH</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-muted-foreground">
+                Deposit to your wallet address above
               </p>
               <Button
                 variant="ghost"
@@ -548,9 +597,6 @@ export default function Profile() {
                 <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mb-4">
-              Available balance • Click refresh to update
-            </p>
 
             <div className="grid grid-cols-2 gap-2">
               <Button 
@@ -568,7 +614,7 @@ export default function Profile() {
                 size="sm" 
                 className="gap-1"
                 onClick={() => setIsWithdrawOpen(true)}
-                disabled={(profile?.wallet_balance || 0) <= 0}
+                disabled={((profile as any)?.wallet_balance || 0) + ((profile as any)?.usdt_balance || 0) + ((profile as any)?.base_balance || 0) <= 0}
               >
                 <ArrowUpRight className="h-4 w-4" />
                 Withdraw

@@ -8,10 +8,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// USDC contract addresses
+// Token contract addresses on Base
 const USDC_ADDRESSES = {
   base: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Address,
-  baseSepolia: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address, // Base Sepolia USDC
+  baseSepolia: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address,
+};
+
+const USDT_ADDRESSES = {
+  base: '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2' as Address,
+  baseSepolia: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address, // Use same for testnet
 };
 
 // ERC20 ABI for balanceOf
@@ -54,6 +59,7 @@ serve(async (req) => {
     });
 
     const usdcAddress = USDC_ADDRESSES[network as keyof typeof USDC_ADDRESSES];
+    const usdtAddress = USDT_ADDRESSES[network as keyof typeof USDT_ADDRESSES];
 
     console.log(`Monitoring deposits on ${network} network...`);
 
@@ -110,7 +116,7 @@ serve(async (req) => {
 
         console.log(`  USDC: On-chain=${balanceInUsdc}, DB=${currentDbBalance}`);
 
-        if (balanceInUsdc > currentDbBalance) {
+        if (balanceInUsdc > currentDbBalance + 0.001) {
           const depositAmount = balanceInUsdc - currentDbBalance;
           updates.push({
             profileId: profile.id,
@@ -123,8 +129,30 @@ serve(async (req) => {
           updatedCount++;
         }
 
-        // 3. Check USDT balance (if needed in future)
-        // USDT address on Base: 0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2
+        // 3. Check USDT balance
+        const usdtBalance = await publicClient.readContract({
+          address: usdtAddress,
+          abi: ERC20_ABI,
+          functionName: 'balanceOf',
+          args: [profile.wallet_address as Address],
+        });
+        const balanceInUsdt = parseFloat(formatUnits(usdtBalance as bigint, 6));
+        const currentDbUsdtBalance = profile.usdt_balance || 0;
+
+        console.log(`  USDT: On-chain=${balanceInUsdt}, DB=${currentDbUsdtBalance}`);
+
+        if (balanceInUsdt > currentDbUsdtBalance + 0.001) {
+          const depositAmount = balanceInUsdt - currentDbUsdtBalance;
+          updates.push({
+            profileId: profile.id,
+            userId: profile.user_id,
+            currency: 'USDT',
+            newBalance: balanceInUsdt,
+            depositAmount,
+            walletAddress: profile.wallet_address,
+          });
+          updatedCount++;
+        }
 
       } catch (error) {
         console.error(`Error checking wallet ${profile.wallet_address}:`, error);
