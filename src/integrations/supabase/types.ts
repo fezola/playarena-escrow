@@ -446,7 +446,20 @@ export type Database = {
       }
     }
     Enums: {
-      game_type: "tic-tac-toe" | "chess" | "scrabble"
+      game_type:
+        | "tic-tac-toe"
+        | "chess"
+        | "scrabble"
+        | "connect-four"
+        | "rock-paper-scissors"
+        | "wordle"
+        | "checkers"
+        | "dots-and-boxes"
+        | "boggle"
+        | "pool"
+        | "ping-pong"
+        | "battleship"
+        | "trivia"
       match_state:
         | "waiting"
         | "depositing"
@@ -580,7 +593,21 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      game_type: ["tic-tac-toe", "chess", "scrabble"],
+      game_type: [
+        "tic-tac-toe",
+        "chess",
+        "scrabble",
+        "connect-four",
+        "rock-paper-scissors",
+        "wordle",
+        "checkers",
+        "dots-and-boxes",
+        "boggle",
+        "pool",
+        "ping-pong",
+        "battleship",
+        "trivia",
+      ],
       match_state: ["waiting", "depositing", "active", "complete", "cancelled"],
     },
   },
