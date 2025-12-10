@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { RoundScoreTracker } from '@/components/RoundScoreTracker';
 import { GameInstructions, ResponsibleGamingBanner } from '@/components/GameInstructions';
+import { MatchChat } from '@/components/MatchChat';
 import { WinnerCardDialog } from '@/components/WinnerCardDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -534,6 +535,11 @@ const MatchPage = () => {
           gameType={gameTypeLabels[match.game_type as keyof typeof gameTypeLabels]}
           finalScore={`${myScore} - ${opponentScore}`}
         />
+      )}
+
+      {/* Match Chat */}
+      {match && myPlayer && match.state !== 'waiting' && (
+        <MatchChat matchId={match.id} currentPlayerId={myPlayer.player_id} />
       )}
     </MobileLayout>
   );

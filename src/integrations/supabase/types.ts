@@ -137,6 +137,45 @@ export type Database = {
           },
         ]
       }
+      match_chat: {
+        Row: {
+          created_at: string
+          id: string
+          match_id: string
+          message: string
+          player_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          match_id: string
+          message: string
+          player_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          match_id?: string
+          message?: string
+          player_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_chat_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_chat_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       match_players: {
         Row: {
           deposit_tx_hash: string | null
