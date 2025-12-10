@@ -154,27 +154,53 @@ export default function Profile() {
         }).then(r => r.json()),
       ]);
       
-      // Parse balances
-      const usdcBalance = usdcRes.result ? Number(BigInt(usdcRes.result)) / 1e6 : 0;
-      const usdtBalance = usdtRes.result ? Number(BigInt(usdtRes.result)) / 1e6 : 0;
-      const baseBalance = baseRes.result ? Number(BigInt(baseRes.result)) / 1e18 : 0;
+      // Parse on-chain balances
+      const onChainUsdc = usdcRes.result ? Number(BigInt(usdcRes.result)) / 1e6 : 0;
+      const onChainUsdt = usdtRes.result ? Number(BigInt(usdtRes.result)) / 1e6 : 0;
+      const onChainBase = baseRes.result ? Number(BigInt(baseRes.result)) / 1e18 : 0;
       
+      console.log('On-chain balances:', { onChainUsdc, onChainUsdt, onChainBase });
+      
+      // Get escrow held for this user to calculate available balance
+      const { data: escrowData } = await supabase
+        .from('escrow')
+        .select('amount, currency')
+        .eq('player_id', profile.id)
+        .eq('status', 'held');
+      
+      // Sum escrow by currency
+      const heldEscrow = { USDC: 0, USDT: 0, BASE: 0 };
+      escrowData?.forEach((e: any) => {
+        if (e.currency in heldEscrow) {
+          heldEscrow[e.currency as keyof typeof heldEscrow] += Number(e.amount);
+        }
+      });
+      
+      console.log('Held in escrow:', heldEscrow);
+      
+      // Available balance = on-chain - held escrow
+      const availableUsdc = Math.max(0, onChainUsdc - heldEscrow.USDC);
+      const availableUsdt = Math.max(0, onChainUsdt - heldEscrow.USDT);
+      const availableBase = Math.max(0, onChainBase - heldEscrow.BASE);
+      
+      console.log('Available balances:', { availableUsdc, availableUsdt, availableBase });
+
       const currentUsdc = (profile as any).wallet_balance || 0;
       const currentUsdt = (profile as any).usdt_balance || 0;
       const currentBase = (profile as any).base_balance || 0;
 
-      // Check if any balance changed
-      const usdcChanged = Math.abs(usdcBalance - currentUsdc) > 0.001;
-      const usdtChanged = Math.abs(usdtBalance - currentUsdt) > 0.001;
-      const baseChanged = Math.abs(baseBalance - currentBase) > 0.000001;
+      // Check if any balance changed significantly
+      const usdcChanged = Math.abs(availableUsdc - currentUsdc) > 0.001;
+      const usdtChanged = Math.abs(availableUsdt - currentUsdt) > 0.001;
+      const baseChanged = Math.abs(availableBase - currentBase) > 0.000001;
 
       if (usdcChanged || usdtChanged || baseChanged) {
         const { error } = await supabase
           .from('profiles')
           .update({ 
-            wallet_balance: usdcBalance,
-            usdt_balance: usdtBalance,
-            base_balance: baseBalance,
+            wallet_balance: availableUsdc,
+            usdt_balance: availableUsdt,
+            base_balance: availableBase,
           })
           .eq('id', profile.id);
 
@@ -184,12 +210,12 @@ export default function Profile() {
         
         toast({
           title: 'Balances updated!',
-          description: `USDC: $${usdcBalance.toFixed(2)} | USDT: $${usdtBalance.toFixed(2)} | BASE: ${baseBalance.toFixed(6)}`,
+          description: `USDC: $${availableUsdc.toFixed(2)} | USDT: $${availableUsdt.toFixed(2)} | BASE: ${availableBase.toFixed(6)} ETH`,
         });
       } else {
         toast({
           title: 'Balances up to date',
-          description: `USDC: $${usdcBalance.toFixed(2)} | USDT: $${usdtBalance.toFixed(2)}`,
+          description: `USDC: $${availableUsdc.toFixed(2)} | BASE: ${availableBase.toFixed(6)} ETH`,
         });
       }
     } catch (error) {
