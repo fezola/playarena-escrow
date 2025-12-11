@@ -604,8 +604,6 @@ const MatchPage = () => {
                   </div>
                 </>
               )}
-                />
-              </div>
 
               {/* Round over (but match continues) */}
               {gameState.winner && !matchWinner && (
