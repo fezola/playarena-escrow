@@ -53,15 +53,29 @@ export default function Leaderboard() {
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
+      // Only fetch users who have actually played games (wins + losses > 0)
       const { data, error } = await supabase
         .from('profiles')
         .select('id, display_name, username, avatar_url, total_wins, total_losses, total_earnings, current_streak')
+        .or('total_wins.gt.0,total_losses.gt.0')
+        .order('total_earnings', { ascending: false })
         .order('total_wins', { ascending: false })
-        .limit(20);
+        .limit(50);
 
       if (!error && data) {
+        // Filter and sort by a combination of earnings and wins
+        const sortedData = data
+          .filter(entry => (entry.total_wins || 0) + (entry.total_losses || 0) > 0)
+          .sort((a, b) => {
+            // Primary sort by earnings
+            const earningsDiff = (b.total_earnings || 0) - (a.total_earnings || 0);
+            if (earningsDiff !== 0) return earningsDiff;
+            // Secondary sort by wins
+            return (b.total_wins || 0) - (a.total_wins || 0);
+          });
+
         setLeaderboard(
-          data.map((entry, index) => ({
+          sortedData.map((entry, index) => ({
             ...entry,
             rank: index + 1,
           }))
