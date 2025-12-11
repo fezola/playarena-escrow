@@ -90,6 +90,9 @@ const MatchPage = () => {
       setGameState({
         ...state,
         roundScores: state.roundScores || { player1: 0, player2: 0 },
+        draws: state.draws || 0,
+        roundNumber: state.roundNumber || 1,
+        lastStarter: state.lastStarter || 'X',
       });
     }
 
@@ -130,6 +133,9 @@ const MatchPage = () => {
             setGameState({
               ...state,
               roundScores: state.roundScores || { player1: 0, player2: 0 },
+              draws: state.draws || 0,
+              roundNumber: state.roundNumber || 1,
+              lastStarter: state.lastStarter || 'X',
             });
           }
         }
@@ -427,10 +433,13 @@ const MatchPage = () => {
                 </div>
               </div>
 
-              {/* Prize */}
+              {/* Prize and Round Info */}
               <div className="text-center">
                 <Badge variant="outline" className="mb-1">VS</Badge>
                 <p className="text-xs text-success font-bold">${totalPrize} Prize</p>
+                {(gameState.draws || 0) > 0 && (
+                  <p className="text-xs text-warning mt-1">Draws: {gameState.draws}</p>
+                )}
               </div>
 
               {/* Player 2 (Opponent) */}
