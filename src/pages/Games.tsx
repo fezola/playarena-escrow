@@ -23,6 +23,7 @@ const games: GameCardProps[] = [
   { gameType: 'trivia', players: '2 Players', duration: '~5 min', color: 'from-violet-500 to-purple-400', available: true },
   { gameType: 'chess', players: '2 Players', duration: '~15 min', color: 'from-purple-500 to-pink-400', available: true },
   { gameType: 'scrabble', players: '2-4 Players', duration: '~20 min', color: 'from-amber-500 to-orange-400', available: true },
+  { gameType: 'cup-pong', players: '2 Players', duration: '~5 min', color: 'from-amber-500 to-yellow-400', available: true },
   { gameType: 'dots-and-boxes', players: '2 Players', duration: '~10 min', color: 'from-pink-500 to-rose-400', available: false },
   { gameType: 'boggle', players: '2 Players', duration: '~5 min', color: 'from-lime-500 to-green-400', available: false },
   { gameType: 'pool', players: '2 Players', duration: '~10 min', color: 'from-green-600 to-emerald-400', available: false },
