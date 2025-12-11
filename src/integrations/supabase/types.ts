@@ -362,6 +362,120 @@ export type Database = {
         }
         Relationships: []
       }
+      prediction_pools: {
+        Row: {
+          created_at: string
+          creator_id: string
+          currency: string
+          id: string
+          max_stake: number | null
+          min_stake: number
+          prediction_type: string
+          settled_at: string | null
+          sports_match_id: string
+          status: string
+          total_pot: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          currency?: string
+          id?: string
+          max_stake?: number | null
+          min_stake?: number
+          prediction_type?: string
+          settled_at?: string | null
+          sports_match_id: string
+          status?: string
+          total_pot?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          currency?: string
+          id?: string
+          max_stake?: number | null
+          min_stake?: number
+          prediction_type?: string
+          settled_at?: string | null
+          sports_match_id?: string
+          status?: string
+          total_pot?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prediction_pools_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prediction_pools_sports_match_id_fkey"
+            columns: ["sports_match_id"]
+            isOneToOne: false
+            referencedRelation: "sports_matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      predictions: {
+        Row: {
+          accuracy_score: number | null
+          created_at: string
+          id: string
+          is_winner: boolean | null
+          payout_amount: number | null
+          player_id: string
+          pool_id: string
+          predicted_away_score: number
+          predicted_home_score: number
+          stake_amount: number
+        }
+        Insert: {
+          accuracy_score?: number | null
+          created_at?: string
+          id?: string
+          is_winner?: boolean | null
+          payout_amount?: number | null
+          player_id: string
+          pool_id: string
+          predicted_away_score: number
+          predicted_home_score: number
+          stake_amount: number
+        }
+        Update: {
+          accuracy_score?: number | null
+          created_at?: string
+          id?: string
+          is_winner?: boolean | null
+          payout_amount?: number | null
+          player_id?: string
+          pool_id?: string
+          predicted_away_score?: number
+          predicted_home_score?: number
+          stake_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "predictions_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "predictions_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "prediction_pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -422,6 +536,60 @@ export type Database = {
           wallet_address?: string | null
           wallet_balance?: number | null
           xp?: number | null
+        }
+        Relationships: []
+      }
+      sports_matches: {
+        Row: {
+          away_logo: string | null
+          away_score: number | null
+          away_team: string
+          created_at: string
+          external_id: string
+          home_logo: string | null
+          home_score: number | null
+          home_team: string
+          id: string
+          is_live: boolean | null
+          league: string
+          match_date: string
+          sport: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          away_logo?: string | null
+          away_score?: number | null
+          away_team: string
+          created_at?: string
+          external_id: string
+          home_logo?: string | null
+          home_score?: number | null
+          home_team: string
+          id?: string
+          is_live?: boolean | null
+          league: string
+          match_date: string
+          sport: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          away_logo?: string | null
+          away_score?: number | null
+          away_team?: string
+          created_at?: string
+          external_id?: string
+          home_logo?: string | null
+          home_score?: number | null
+          home_team?: string
+          id?: string
+          is_live?: boolean | null
+          league?: string
+          match_date?: string
+          sport?: string
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -489,6 +657,10 @@ export type Database = {
         Args: { _match_id: string; _winner_id: string }
         Returns: Json
       }
+      settle_prediction_pool: {
+        Args: { _away_score: number; _home_score: number; _pool_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       game_type:
@@ -506,6 +678,7 @@ export type Database = {
         | "battleship"
         | "trivia"
         | "cup-pong"
+        | "sports-prediction"
       match_state:
         | "waiting"
         | "depositing"
@@ -654,6 +827,7 @@ export const Constants = {
         "battleship",
         "trivia",
         "cup-pong",
+        "sports-prediction",
       ],
       match_state: ["waiting", "depositing", "active", "complete", "cancelled"],
     },

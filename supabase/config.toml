@@ -2,3 +2,6 @@ project_id = "lozxmjmmohhygtfedijd"
 
 [functions.generate-wallet]
 verify_jwt = false
+
+[functions.fetch-sports-matches]
+verify_jwt = true

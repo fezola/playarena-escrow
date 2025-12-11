@@ -218,6 +218,20 @@ const instructions: Record<GameType, { title: string; rules: string[]; tips: str
       'Stay calm and focused for consistent throws',
     ],
   },
+  'sports-prediction': {
+    title: 'Sports Prediction',
+    rules: [
+      'Predict the final score of real sports matches',
+      'Join prediction pools and stake your prediction',
+      'Closer predictions earn more of the pot',
+      'Payouts are proportional to prediction accuracy',
+    ],
+    tips: [
+      'Research team form and head-to-head records',
+      'Consider home advantage and player injuries',
+      'More accurate predictions = bigger share of winnings',
+    ],
+  },
 };
 
 export function GameInstructions({ gameType }: GameInstructionsProps) {
