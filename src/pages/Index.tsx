@@ -28,6 +28,7 @@ const quickGames: { type: GameType; color: string }[] = [
   { type: 'chess', color: 'from-gray-600 to-gray-400' },
   { type: 'scrabble', color: 'from-amber-500 to-orange-400' },
   { type: 'cup-pong', color: 'from-amber-500 to-yellow-400' },
+  { type: 'sports-prediction', color: 'from-green-500 to-emerald-400' },
   { type: 'dots-and-boxes', color: 'from-indigo-500 to-violet-400' },
   { type: 'boggle', color: 'from-lime-500 to-green-400' },
   { type: 'pool', color: 'from-emerald-600 to-cyan-400' },

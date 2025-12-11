@@ -133,6 +133,14 @@ const gameDetails: Record<GameType, {
     skill: 'Beginner',
     color: 'from-amber-500 to-red-400',
   },
+  'sports-prediction': {
+    description: 'Predict sports match scores and compete for the pot!',
+    rules: ['Predict final scores of real matches', 'Stake USDC on your predictions', 'Closer predictions = bigger payout', 'Proportional winnings based on accuracy'],
+    players: 'Unlimited',
+    duration: '~1-2 hrs',
+    skill: 'Intermediate',
+    color: 'from-green-500 to-emerald-400',
+  },
 };
 
 const skillColors = {

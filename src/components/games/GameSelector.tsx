@@ -24,6 +24,7 @@ const gameDescriptions: Record<GameType, string> = {
   'battleship': 'Sink the enemy fleet!',
   'trivia': 'Test your knowledge against opponents.',
   'cup-pong': 'Throw balls into cups. Hit = extra turn!',
+  'sports-prediction': 'Predict sports scores and win!',
 };
 
 const gameStats: Record<GameType, { time: string; skill: string }> = {
@@ -41,13 +42,14 @@ const gameStats: Record<GameType, { time: string; skill: string }> = {
   'battleship': { time: '~15 min', skill: 'Intermediate' },
   'trivia': { time: '~5 min', skill: 'Beginner' },
   'cup-pong': { time: '~5 min', skill: 'Beginner' },
+  'sports-prediction': { time: '~1-2 hrs', skill: 'Intermediate' },
 };
 
 export function GameSelector({ selected, onChange }: GameSelectorProps) {
   const games: GameType[] = [
     'tic-tac-toe', 'connect-four', 'rock-paper-scissors', 'cup-pong',
     'wordle', 'checkers', 'battleship', 'trivia',
-    'chess', 'scrabble', 'dots-and-boxes', 'boggle', 
+    'chess', 'scrabble', 'sports-prediction', 'dots-and-boxes', 'boggle', 
     'pool', 'ping-pong'
   ];
 
