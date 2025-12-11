@@ -45,7 +45,18 @@ const CreateMatch = () => {
     }
   };
 
-  const hasEnoughBalance = (profile?.wallet_balance || 0) >= stakeAmount;
+  // Get balance based on selected currency
+  const getBalanceForCurrency = () => {
+    switch (currency) {
+      case 'BASE': return (profile as any)?.base_balance || 0;
+      case 'USDT': return (profile as any)?.usdt_balance || 0;
+      case 'USDC': 
+      default: return profile?.wallet_balance || 0;
+    }
+  };
+
+  const currentBalance = getBalanceForCurrency();
+  const hasEnoughBalance = currentBalance >= stakeAmount;
 
   const canProceed = () => {
     if (step === 1) return true;
@@ -220,12 +231,12 @@ const CreateMatch = () => {
                       <span className="font-medium">Your Balance</span>
                     </div>
                     <span className={`font-display font-bold ${hasEnoughBalance ? 'text-success' : 'text-destructive'}`}>
-                      ${profile?.wallet_balance?.toFixed(2) || '0.00'}
+                      ${currentBalance.toFixed(2)} {currency}
                     </span>
                   </div>
                   {!hasEnoughBalance && (
                     <p className="text-xs text-destructive mt-2">
-                      You need ${stakeAmount - (profile?.wallet_balance || 0)} more. Add funds in your profile.
+                      You need ${(stakeAmount - currentBalance).toFixed(2)} more {currency}. Add funds in your profile.
                     </p>
                   )}
                 </CardContent>
