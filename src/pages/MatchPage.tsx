@@ -29,6 +29,9 @@ interface MatchWithPlayers extends Match {
 
 interface ExtendedGameState extends TicTacToeState {
   roundScores?: { player1: number; player2: number };
+  draws?: number;
+  roundNumber?: number;
+  lastStarter?: 'X' | 'O';
 }
 
 const MatchPage = () => {
@@ -47,6 +50,9 @@ const MatchPage = () => {
     winner: null,
     winningLine: null,
     roundScores: { player1: 0, player2: 0 },
+    draws: 0,
+    roundNumber: 1,
+    lastStarter: 'X',
   });
 
   const fetchMatch = async () => {
@@ -201,14 +207,21 @@ const MatchPage = () => {
       roundWinner = 'draw';
     }
 
-    // Update round scores if round is over
+    // Update round scores and draws if round is over
     let newRoundScores = { ...gameState.roundScores } as { player1: number; player2: number };
+    let newDraws = gameState.draws || 0;
+    let newRoundNumber = gameState.roundNumber || 1;
+    
     if (roundWinner && roundWinner !== 'draw') {
       if (roundWinner === 'X') {
         newRoundScores.player1 += 1;
       } else {
         newRoundScores.player2 += 1;
       }
+      newRoundNumber += 1;
+    } else if (roundWinner === 'draw') {
+      newDraws += 1;
+      // Draws don't count as a round in multi-round matches
     }
 
     const newState: ExtendedGameState = {
@@ -217,6 +230,9 @@ const MatchPage = () => {
       winner: roundWinner,
       winningLine,
       roundScores: newRoundScores,
+      draws: newDraws,
+      roundNumber: newRoundNumber,
+      lastStarter: gameState.lastStarter || 'X',
     };
 
     // Check if match is over (someone won enough rounds)
@@ -241,7 +257,7 @@ const MatchPage = () => {
         state: matchComplete ? 'complete' : 'active',
         ended_at: matchComplete ? new Date().toISOString() : null,
         winner_id: matchWinnerId,
-        current_round: match.current_round + (roundWinner ? 1 : 0),
+        current_round: matchComplete ? match.current_round + 1 : match.current_round,
       })
       .eq('id', match.id);
 
@@ -275,7 +291,13 @@ const MatchPage = () => {
           }, 1500);
         }
       }
-    } else if (roundWinner && roundWinner !== 'draw') {
+    } else if (roundWinner === 'draw') {
+      // Notify about draw
+      toast({
+        title: "It's a Draw!",
+        description: `Draws: ${newDraws}. Next round, ${gameState.lastStarter === 'X' ? 'O' : 'X'} starts first.`,
+      });
+    } else if (roundWinner) {
       // Just a round win, not match win
       toast({
         title: roundWinner === playerSymbol ? 'Round Won!' : 'Round Lost',
@@ -305,12 +327,23 @@ const MatchPage = () => {
   const handleNextRound = async () => {
     if (!match || matchWinner) return;
 
+    // Alternate starting player: if last game was a draw, swap starter
+    // If not a draw, winner of last round starts (or maintain alternating pattern)
+    const lastStarter = gameState.lastStarter || 'X';
+    const wasDraw = gameState.winner === 'draw';
+    const newStarter: 'X' | 'O' = wasDraw 
+      ? (lastStarter === 'X' ? 'O' : 'X')  // Alternate after draw
+      : (gameState.winner === lastStarter ? lastStarter : (lastStarter === 'X' ? 'O' : 'X')); // Winner starts or alternate
+
     const newState: ExtendedGameState = {
       board: Array(9).fill(null) as TicTacToeCell[],
-      currentPlayer: 'X',
+      currentPlayer: newStarter,
       winner: null,
       winningLine: null,
       roundScores: gameState.roundScores,
+      draws: gameState.draws || 0,
+      roundNumber: gameState.roundNumber || 1,
+      lastStarter: newStarter,
     };
 
     await supabase
