@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { ArrowLeft, Trophy, Loader2, RefreshCw, Zap, Clock, CheckCircle } from "lucide-react";
+import { ArrowLeft, Trophy, Loader2, RefreshCw, Zap, Clock, CheckCircle, Info, Plus, Users, DollarSign } from "lucide-react";
 import { MobileLayout } from "@/components/MobileLayout";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface SportsMatch {
   id: string;
@@ -42,7 +43,6 @@ interface PredictionPool {
     stake_amount: number;
     is_winner: boolean | null;
     payout_amount: number | null;
-    profiles?: { display_name: string | null; avatar_url: string | null };
   }>;
 }
 
@@ -58,12 +58,12 @@ export default function SportsPrediction() {
   const [predictedAwayScore, setPredictedAwayScore] = useState("");
   const [stakeAmount, setStakeAmount] = useState("5");
   const [submitting, setSubmitting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMatches();
     fetchPools();
     
-    // Set up realtime subscription for live score updates
     const channel = supabase
       .channel('sports-updates')
       .on('postgres_changes', {
@@ -121,15 +121,20 @@ export default function SportsPrediction() {
 
   const refreshLiveScores = async () => {
     setRefreshing(true);
+    setApiError(null);
     try {
-      const { error } = await supabase.functions.invoke('fetch-sports-matches', {
+      const { data, error } = await supabase.functions.invoke('fetch-sports-matches', {
         body: { action: 'fetch_live' }
       });
       
       if (error) throw error;
       
+      if (data?.count === 0) {
+        setApiError('No live matches currently. Live matches will appear during game times.');
+      }
+      
       await fetchMatches();
-      toast.success('Live scores updated!');
+      toast.success(`Found ${data?.count || 0} live matches`);
     } catch (error) {
       console.error('Error refreshing:', error);
       toast.error('Failed to refresh scores');
@@ -139,18 +144,75 @@ export default function SportsPrediction() {
 
   const fetchUpcomingMatches = async () => {
     setRefreshing(true);
+    setApiError(null);
     try {
-      const { error } = await supabase.functions.invoke('fetch-sports-matches', {
+      const { data, error } = await supabase.functions.invoke('fetch-sports-matches', {
         body: { action: 'fetch_upcoming' }
       });
       
       if (error) throw error;
       
+      if (data?.count === 0) {
+        setApiError('The SportMonks API returned no matches for today. This may be due to API access limits or no scheduled matches.');
+      }
+      
       await fetchMatches();
-      toast.success('Upcoming matches loaded!');
+      toast.success(`Loaded ${data?.count || 0} matches`);
     } catch (error) {
       console.error('Error fetching upcoming:', error);
       toast.error('Failed to fetch matches');
+    }
+    setRefreshing(false);
+  };
+
+  const addDemoMatch = async () => {
+    if (!profile) {
+      toast.error('Please log in first');
+      return;
+    }
+    
+    setRefreshing(true);
+    try {
+      // Add a demo match for testing
+      const matchTime = new Date();
+      matchTime.setHours(matchTime.getHours() + 2);
+      
+      const demoMatches = [
+        {
+          external_id: `demo-${Date.now()}-1`,
+          sport: 'football',
+          league: 'Demo League',
+          home_team: 'Manchester United',
+          away_team: 'Liverpool',
+          home_logo: 'https://cdn.sportmonks.com/images/soccer/teams/14/14.png',
+          away_logo: 'https://cdn.sportmonks.com/images/soccer/teams/8/8.png',
+          match_date: matchTime.toISOString(),
+          status: 'scheduled',
+          is_live: false,
+        },
+        {
+          external_id: `demo-${Date.now()}-2`,
+          sport: 'football',
+          league: 'Demo League',
+          home_team: 'Chelsea',
+          away_team: 'Arsenal',
+          home_logo: 'https://cdn.sportmonks.com/images/soccer/teams/18/18.png',
+          away_logo: 'https://cdn.sportmonks.com/images/soccer/teams/1/1.png',
+          match_date: new Date(matchTime.getTime() + 3600000).toISOString(),
+          status: 'scheduled',
+          is_live: false,
+        },
+      ];
+
+      for (const match of demoMatches) {
+        await supabase.from('sports_matches').insert(match);
+      }
+      
+      await fetchMatches();
+      toast.success('Demo matches added! You can now make predictions.');
+    } catch (error) {
+      console.error('Error adding demo:', error);
+      toast.error('Failed to add demo matches');
     }
     setRefreshing(false);
   };
@@ -182,11 +244,9 @@ export default function SportsPrediction() {
 
     setSubmitting(true);
     try {
-      // Check if pool exists for this match
       let poolId = pools.find(p => p.sports_match_id === selectedMatch.id)?.id;
 
       if (!poolId) {
-        // Create new pool
         const { data: newPool, error: poolError } = await supabase
           .from('prediction_pools')
           .insert({
@@ -201,7 +261,6 @@ export default function SportsPrediction() {
         poolId = newPool.id;
       }
 
-      // Deduct from wallet
       const { error: walletError } = await supabase
         .from('profiles')
         .update({ wallet_balance: (profile.wallet_balance || 0) - stake })
@@ -209,7 +268,6 @@ export default function SportsPrediction() {
 
       if (walletError) throw walletError;
 
-      // Create prediction
       const { error: predError } = await supabase
         .from('predictions')
         .insert({
@@ -222,10 +280,9 @@ export default function SportsPrediction() {
 
       if (predError) throw predError;
 
-      // Update pool total
       await supabase
         .from('prediction_pools')
-        .update({ total_pot: pools.find(p => p.id === poolId)?.total_pot || 0 + stake })
+        .update({ total_pot: (pools.find(p => p.id === poolId)?.total_pot || 0) + stake })
         .eq('id', poolId);
 
       toast.success('Prediction submitted!');
@@ -261,7 +318,6 @@ export default function SportsPrediction() {
       </div>
       
       <div className="flex items-center justify-between gap-4">
-        {/* Home Team */}
         <div className="flex-1 text-center">
           {match.home_logo && (
             <img src={match.home_logo} alt={match.home_team} className="w-12 h-12 mx-auto mb-1 object-contain" />
@@ -269,7 +325,6 @@ export default function SportsPrediction() {
           <p className="text-sm font-medium truncate">{match.home_team}</p>
         </div>
         
-        {/* Score */}
         <div className="text-center px-4">
           {match.is_live || match.status === 'finished' ? (
             <div className="text-2xl font-bold">
@@ -282,7 +337,6 @@ export default function SportsPrediction() {
           )}
         </div>
         
-        {/* Away Team */}
         <div className="flex-1 text-center">
           {match.away_logo && (
             <img src={match.away_logo} alt={match.away_team} className="w-12 h-12 mx-auto mb-1 object-contain" />
@@ -329,22 +383,46 @@ export default function SportsPrediction() {
         </div>
 
         <div className="p-4 space-y-4">
+          {/* How It Works */}
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>How Sports Prediction Works</AlertTitle>
+            <AlertDescription className="text-xs mt-2 space-y-1">
+              <p>1. <strong>Load matches</strong> - Click "Load Matches" to fetch today's football games</p>
+              <p>2. <strong>Make predictions</strong> - Predict the final score and stake USDC</p>
+              <p>3. <strong>Multiple players</strong> - Anyone can predict on the same match</p>
+              <p>4. <strong>Win proportionally</strong> - Closer predictions get bigger payouts!</p>
+            </AlertDescription>
+          </Alert>
+
           {/* Quick Actions */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={fetchUpcomingMatches} disabled={refreshing}>
-              Load Today's Matches
+              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Load Matches
             </Button>
             <Button variant="outline" size="sm" onClick={refreshLiveScores} disabled={refreshing}>
-              Refresh Live
+              <Zap className="w-4 h-4 mr-2" />
+              Live Scores
+            </Button>
+            <Button variant="secondary" size="sm" onClick={addDemoMatch} disabled={refreshing}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Demo Match
             </Button>
           </div>
+
+          {apiError && (
+            <Alert variant="destructive">
+              <AlertDescription>{apiError}</AlertDescription>
+            </Alert>
+          )}
 
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : (
-            <Tabs defaultValue="live" className="w-full">
+            <Tabs defaultValue="upcoming" className="w-full">
               <TabsList className="w-full grid grid-cols-3">
                 <TabsTrigger value="live" className="relative">
                   Live
@@ -354,7 +432,7 @@ export default function SportsPrediction() {
                     </span>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+                <TabsTrigger value="upcoming">Upcoming ({upcomingMatches.length})</TabsTrigger>
                 <TabsTrigger value="finished">Finished</TabsTrigger>
               </TabsList>
               
@@ -374,8 +452,18 @@ export default function SportsPrediction() {
                 {upcomingMatches.length === 0 ? (
                   <Card className="p-8 text-center">
                     <Clock className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-                    <p className="text-muted-foreground">No upcoming matches loaded</p>
-                    <Button variant="link" onClick={fetchUpcomingMatches}>Load today's matches</Button>
+                    <p className="text-muted-foreground mb-2">No upcoming matches loaded</p>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      Click "Load Matches" to fetch from SportMonks API, or "Add Demo Match" to test the feature.
+                    </p>
+                    <div className="flex gap-2 justify-center">
+                      <Button variant="outline" size="sm" onClick={fetchUpcomingMatches}>
+                        Load Matches
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={addDemoMatch}>
+                        Add Demo Match
+                      </Button>
+                    </div>
                   </Card>
                 ) : (
                   upcomingMatches.map(match => <MatchCard key={match.id} match={match} showPredictButton />)
@@ -395,10 +483,13 @@ export default function SportsPrediction() {
             </Tabs>
           )}
 
-          {/* My Predictions Section */}
+          {/* Active Prediction Pools */}
           {pools.length > 0 && (
             <div className="mt-6">
-              <h2 className="text-lg font-semibold mb-3">Active Prediction Pools</h2>
+              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Active Prediction Pools
+              </h2>
               <div className="space-y-3">
                 {pools.map(pool => (
                   <Card key={pool.id} className="p-4 bg-card/50">
@@ -411,8 +502,14 @@ export default function SportsPrediction() {
                       </Badge>
                     </div>
                     <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>Total Pot: ${pool.total_pot}</span>
-                      <span>{pool.predictions?.length || 0} predictions</span>
+                      <span className="flex items-center gap-1">
+                        <DollarSign className="w-4 h-4" />
+                        Total Pot: ${pool.total_pot}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Users className="w-4 h-4" />
+                        {pool.predictions?.length || 0} predictions
+                      </span>
                     </div>
                   </Card>
                 ))}
@@ -432,7 +529,7 @@ export default function SportsPrediction() {
                   {selectedMatch.home_logo && (
                     <img src={selectedMatch.home_logo} alt={selectedMatch.home_team} className="w-16 h-16 mx-auto mb-2 object-contain" />
                   )}
-                  <p className="font-medium">{selectedMatch.home_team}</p>
+                  <p className="font-medium text-sm">{selectedMatch.home_team}</p>
                   <Input
                     type="number"
                     min="0"
@@ -447,7 +544,7 @@ export default function SportsPrediction() {
                   {selectedMatch.away_logo && (
                     <img src={selectedMatch.away_logo} alt={selectedMatch.away_team} className="w-16 h-16 mx-auto mb-2 object-contain" />
                   )}
-                  <p className="font-medium">{selectedMatch.away_team}</p>
+                  <p className="font-medium text-sm">{selectedMatch.away_team}</p>
                   <Input
                     type="number"
                     min="0"
@@ -481,6 +578,9 @@ export default function SportsPrediction() {
                   className="mt-2"
                   placeholder="Custom amount"
                 />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Your balance: ${profile?.wallet_balance?.toFixed(2) || '0.00'}
+                </p>
               </div>
               
               <div className="flex gap-3">
