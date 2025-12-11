@@ -12,6 +12,20 @@ import {
 } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+// Import stickers
+import trophySticker from '@/assets/stickers/trophy.png';
+import lolSticker from '@/assets/stickers/lol.png';
+import ggFireSticker from '@/assets/stickers/gg-fire.png';
+import cryingSticker from '@/assets/stickers/crying.png';
+import coolSticker from '@/assets/stickers/cool.png';
+import rageSticker from '@/assets/stickers/rage.png';
+import crownSticker from '@/assets/stickers/crown.png';
+import partySticker from '@/assets/stickers/party.png';
+import thinkingSticker from '@/assets/stickers/thinking.png';
+import shockedSticker from '@/assets/stickers/shocked.png';
+import sleepySticker from '@/assets/stickers/sleepy.png';
+import flexSticker from '@/assets/stickers/flex.png';
+
 interface ChatMessage {
   id: string;
   match_id: string;
@@ -31,53 +45,30 @@ interface MatchChatProps {
 
 const QUICK_EMOJIS = ['😀', '😂', '🎉', '👍', '👎', '🔥', '💪', '🤔', '😱', '🎮', '🏆', '💀', '😎', '🤣', '❤️', '💯', '🙌', '😤'];
 
-// Stickers - using emoji combinations and unicode art as stickers
-const STICKERS = {
+// Real image stickers
+const IMAGE_STICKERS = {
   reactions: [
-    { id: 'winner', emoji: '🏆✨', label: 'Winner' },
-    { id: 'loser', emoji: '😭💔', label: 'Lost' },
-    { id: 'gg', emoji: '🤝🎮', label: 'GG' },
-    { id: 'fire', emoji: '🔥🔥🔥', label: 'Fire' },
-    { id: 'clap', emoji: '👏👏👏', label: 'Clapping' },
-    { id: 'mind-blown', emoji: '🤯💥', label: 'Mind Blown' },
-    { id: 'flexing', emoji: '💪😤', label: 'Flexing' },
-    { id: 'crying', emoji: '😢😢', label: 'Crying' },
-    { id: 'laughing', emoji: '🤣😂🤣', label: 'LOL' },
-    { id: 'shocked', emoji: '😱😱', label: 'Shocked' },
-    { id: 'thinking', emoji: '🤔💭', label: 'Thinking' },
-    { id: 'cool', emoji: '😎✌️', label: 'Cool' },
+    { id: 'trophy', src: trophySticker, label: 'Trophy' },
+    { id: 'lol', src: lolSticker, label: 'LOL' },
+    { id: 'cool', src: coolSticker, label: 'Cool' },
+    { id: 'thinking', src: thinkingSticker, label: 'Thinking' },
+    { id: 'shocked', src: shockedSticker, label: 'Shocked' },
+    { id: 'crying', src: cryingSticker, label: 'Crying' },
   ],
-  taunts: [
-    { id: 'easy', emoji: '😏💅', label: 'Easy' },
-    { id: 'bye', emoji: '👋😜', label: 'Bye Bye' },
-    { id: 'sleep', emoji: '😴💤', label: 'Sleepy' },
-    { id: 'bored', emoji: '🥱😑', label: 'Bored' },
-    { id: 'slow', emoji: '🐢💨', label: 'Slow' },
-    { id: 'scared', emoji: '🏃💨', label: 'Running' },
-    { id: 'trash', emoji: '🗑️😂', label: 'Trash' },
-    { id: 'noob', emoji: '👶🎮', label: 'Noob' },
+  gaming: [
+    { id: 'gg-fire', src: ggFireSticker, label: 'GG' },
+    { id: 'rage', src: rageSticker, label: 'Rage' },
+    { id: 'crown', src: crownSticker, label: 'Crown' },
+    { id: 'flex', src: flexSticker, label: 'Flex' },
   ],
   celebration: [
-    { id: 'party', emoji: '🎉🥳🎊', label: 'Party' },
-    { id: 'confetti', emoji: '🎊✨🎊', label: 'Confetti' },
-    { id: 'dancing', emoji: '💃🕺', label: 'Dancing' },
-    { id: 'champagne', emoji: '🍾🥂', label: 'Champagne' },
-    { id: 'money', emoji: '💰💵💰', label: 'Money' },
-    { id: 'rocket', emoji: '🚀🌟', label: 'Rocket' },
-    { id: 'crown', emoji: '👑✨', label: 'Crown' },
-    { id: 'diamond', emoji: '💎💎', label: 'Diamond' },
-  ],
-  animated: [
-    { id: 'spin', emoji: '🔄🌀🔄', label: 'Spinning', animated: true },
-    { id: 'heartbeat', emoji: '💓💗💓', label: 'Heartbeat', animated: true },
-    { id: 'explosion', emoji: '💥⭐💥', label: 'Explosion', animated: true },
-    { id: 'wave', emoji: '🌊🏄🌊', label: 'Wave', animated: true },
-    { id: 'sparkle', emoji: '✨⭐✨', label: 'Sparkle', animated: true },
-    { id: 'lightning', emoji: '⚡🌩️⚡', label: 'Lightning', animated: true },
-    { id: 'rainbow', emoji: '🌈✨🌈', label: 'Rainbow', animated: true },
-    { id: 'disco', emoji: '🪩🎶🪩', label: 'Disco', animated: true },
+    { id: 'party', src: partySticker, label: 'Party' },
+    { id: 'sleepy', src: sleepySticker, label: 'Sleepy' },
   ],
 };
+
+// Prefix to identify sticker messages
+const STICKER_PREFIX = '[STICKER]:';
 
 export function MatchChat({ matchId, currentPlayerId }: MatchChatProps) {
   const { profile } = useAuth();
@@ -196,22 +187,28 @@ export function MatchChat({ matchId, currentPlayerId }: MatchChatProps) {
     inputRef.current?.focus();
   };
 
-  const handleSticker = (stickerEmoji: string) => {
-    sendMessage(stickerEmoji);
+  const handleSticker = (stickerId: string) => {
+    sendMessage(`${STICKER_PREFIX}${stickerId}`);
   };
 
+  // Find sticker by ID
+  const getStickerById = (id: string) => {
+    const allStickers = [
+      ...IMAGE_STICKERS.reactions,
+      ...IMAGE_STICKERS.gaming,
+      ...IMAGE_STICKERS.celebration,
+    ];
+    return allStickers.find((s) => s.id === id);
+  };
+
+  // Check if message is a sticker
   const isSticker = (message: string) => {
-    // Check if message is a sticker (multiple emojis, short length, no regular text)
-    const emojiRegex = /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F000}-\u{1F02F}\u{1F0A0}-\u{1F0FF}\u{1F100}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1FA00}-\u{1FAFF}\u{200D}\u{FE0F}\s]+$/u;
-    return emojiRegex.test(message) && message.length <= 15;
+    return message.startsWith(STICKER_PREFIX);
   };
 
-  const getStickerAnimation = (message: string) => {
-    const animatedSticker = STICKERS.animated.find(s => s.emoji === message);
-    if (animatedSticker) {
-      return 'animate-bounce';
-    }
-    return '';
+  // Get sticker ID from message
+  const getStickerId = (message: string) => {
+    return message.replace(STICKER_PREFIX, '');
   };
 
   return (
@@ -264,7 +261,6 @@ export function MatchChat({ matchId, currentPlayerId }: MatchChatProps) {
               messages.map((msg) => {
                 const isOwn = msg.player_id === currentPlayerId;
                 const msgIsSticker = isSticker(msg.message);
-                const animation = getStickerAnimation(msg.message);
                 
                 return (
                   <div
@@ -278,8 +274,20 @@ export function MatchChat({ matchId, currentPlayerId }: MatchChatProps) {
                       {isOwn ? 'You' : msg.player?.display_name || 'Player'}
                     </span>
                     {msgIsSticker ? (
-                      <div className={cn("text-4xl", animation)}>
-                        {msg.message}
+                      <div className="w-24 h-24">
+                        {(() => {
+                          const sticker = getStickerById(getStickerId(msg.message));
+                          if (sticker) {
+                            return (
+                              <img 
+                                src={sticker.src} 
+                                alt={sticker.label}
+                                className="w-full h-full object-contain animate-scale-in"
+                              />
+                            );
+                          }
+                          return <span className="text-muted-foreground text-xs">Sticker</span>;
+                        })()}
                       </div>
                     ) : (
                       <div
@@ -337,72 +345,67 @@ export function MatchChat({ matchId, currentPlayerId }: MatchChatProps) {
                 </PopoverTrigger>
                 <PopoverContent className="w-72 p-2" align="start" side="top">
                   <Tabs value={stickerTab} onValueChange={setStickerTab}>
-                    <TabsList className="grid w-full grid-cols-4 h-8">
-                      <TabsTrigger value="reactions" className="text-xs">React</TabsTrigger>
-                      <TabsTrigger value="taunts" className="text-xs">Taunt</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-3 h-8">
+                      <TabsTrigger value="reactions" className="text-xs">Reactions</TabsTrigger>
+                      <TabsTrigger value="gaming" className="text-xs">Gaming</TabsTrigger>
                       <TabsTrigger value="celebration" className="text-xs">Party</TabsTrigger>
-                      <TabsTrigger value="animated" className="text-xs">Animated</TabsTrigger>
                     </TabsList>
                     <TabsContent value="reactions" className="mt-2">
-                      <div className="grid grid-cols-4 gap-1">
-                        {STICKERS.reactions.map((sticker) => (
+                      <div className="grid grid-cols-3 gap-2">
+                        {IMAGE_STICKERS.reactions.map((sticker) => (
                           <Button
                             key={sticker.id}
                             variant="ghost"
                             size="sm"
-                            className="h-12 p-0 text-xl hover:bg-muted flex flex-col"
-                            onClick={() => handleSticker(sticker.emoji)}
+                            className="h-16 w-16 p-1 hover:bg-muted"
+                            onClick={() => handleSticker(sticker.id)}
                             title={sticker.label}
                           >
-                            <span>{sticker.emoji}</span>
+                            <img 
+                              src={sticker.src} 
+                              alt={sticker.label}
+                              className="w-full h-full object-contain"
+                            />
                           </Button>
                         ))}
                       </div>
                     </TabsContent>
-                    <TabsContent value="taunts" className="mt-2">
-                      <div className="grid grid-cols-4 gap-1">
-                        {STICKERS.taunts.map((sticker) => (
+                    <TabsContent value="gaming" className="mt-2">
+                      <div className="grid grid-cols-3 gap-2">
+                        {IMAGE_STICKERS.gaming.map((sticker) => (
                           <Button
                             key={sticker.id}
                             variant="ghost"
                             size="sm"
-                            className="h-12 p-0 text-xl hover:bg-muted flex flex-col"
-                            onClick={() => handleSticker(sticker.emoji)}
+                            className="h-16 w-16 p-1 hover:bg-muted"
+                            onClick={() => handleSticker(sticker.id)}
                             title={sticker.label}
                           >
-                            <span>{sticker.emoji}</span>
+                            <img 
+                              src={sticker.src} 
+                              alt={sticker.label}
+                              className="w-full h-full object-contain"
+                            />
                           </Button>
                         ))}
                       </div>
                     </TabsContent>
                     <TabsContent value="celebration" className="mt-2">
-                      <div className="grid grid-cols-4 gap-1">
-                        {STICKERS.celebration.map((sticker) => (
+                      <div className="grid grid-cols-3 gap-2">
+                        {IMAGE_STICKERS.celebration.map((sticker) => (
                           <Button
                             key={sticker.id}
                             variant="ghost"
                             size="sm"
-                            className="h-12 p-0 text-xl hover:bg-muted flex flex-col"
-                            onClick={() => handleSticker(sticker.emoji)}
+                            className="h-16 w-16 p-1 hover:bg-muted"
+                            onClick={() => handleSticker(sticker.id)}
                             title={sticker.label}
                           >
-                            <span>{sticker.emoji}</span>
-                          </Button>
-                        ))}
-                      </div>
-                    </TabsContent>
-                    <TabsContent value="animated" className="mt-2">
-                      <div className="grid grid-cols-4 gap-1">
-                        {STICKERS.animated.map((sticker) => (
-                          <Button
-                            key={sticker.id}
-                            variant="ghost"
-                            size="sm"
-                            className="h-12 p-0 text-xl hover:bg-muted flex flex-col animate-pulse"
-                            onClick={() => handleSticker(sticker.emoji)}
-                            title={sticker.label}
-                          >
-                            <span>{sticker.emoji}</span>
+                            <img 
+                              src={sticker.src} 
+                              alt={sticker.label}
+                              className="w-full h-full object-contain"
+                            />
                           </Button>
                         ))}
                       </div>
