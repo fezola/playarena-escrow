@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { WalletConnect } from './WalletConnect';
+import { NotificationBell } from './NotificationBell';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { Gamepad2, Plus, Trophy, Home } from 'lucide-react';
@@ -64,8 +65,11 @@ export function Header() {
           })}
         </nav>
 
-        {/* Wallet */}
-        <WalletConnect />
+        {/* Notifications & Wallet */}
+        <div className="flex items-center gap-2">
+          <NotificationBell />
+          <WalletConnect />
+        </div>
       </div>
 
       {/* Mobile Navigation */}

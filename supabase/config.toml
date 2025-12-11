@@ -4,4 +4,7 @@ project_id = "lozxmjmmohhygtfedijd"
 verify_jwt = false
 
 [functions.fetch-sports-matches]
-verify_jwt = true
+verify_jwt = false
+
+[functions.settle-predictions]
+verify_jwt = false
