@@ -505,6 +505,7 @@ export type Database = {
         | "ping-pong"
         | "battleship"
         | "trivia"
+        | "cup-pong"
       match_state:
         | "waiting"
         | "depositing"
@@ -652,6 +653,7 @@ export const Constants = {
         "ping-pong",
         "battleship",
         "trivia",
+        "cup-pong",
       ],
       match_state: ["waiting", "depositing", "active", "complete", "cancelled"],
     },

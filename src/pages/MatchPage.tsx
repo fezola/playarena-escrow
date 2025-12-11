@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MobileLayout } from '@/components/MobileLayout';
 import { TicTacToeBoard } from '@/components/games/TicTacToeBoard';
+import { CupPongGame, CupPongState, createInitialCupPongState, processCupPongThrow } from '@/components/games/CupPongGame';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +35,11 @@ interface ExtendedGameState extends TicTacToeState {
   lastStarter?: 'X' | 'O';
 }
 
+// Cup Pong extended state for matches
+interface CupPongMatchState extends CupPongState {
+  roundScores?: { player1: number; player2: number };
+}
+
 const MatchPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -44,6 +50,8 @@ const MatchPage = () => {
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showWinnerCard, setShowWinnerCard] = useState(false);
+  
+  // Tic Tac Toe state
   const [gameState, setGameState] = useState<ExtendedGameState>({
     board: Array(9).fill(null) as TicTacToeCell[],
     currentPlayer: 'X',
@@ -53,6 +61,12 @@ const MatchPage = () => {
     draws: 0,
     roundNumber: 1,
     lastStarter: 'X',
+  });
+
+  // Cup Pong state
+  const [cupPongState, setCupPongState] = useState<CupPongMatchState>({
+    ...createInitialCupPongState(),
+    roundScores: { player1: 0, player2: 0 },
   });
 
   const fetchMatch = async () => {
@@ -84,16 +98,25 @@ const MatchPage = () => {
 
     setMatch(data as unknown as MatchWithPlayers);
     
-    // Load game state
+    // Load game state based on game type
     if (data.game_state) {
-      const state = data.game_state as unknown as ExtendedGameState;
-      setGameState({
-        ...state,
-        roundScores: state.roundScores || { player1: 0, player2: 0 },
-        draws: state.draws || 0,
-        roundNumber: state.roundNumber || 1,
-        lastStarter: state.lastStarter || 'X',
-      });
+      if (data.game_type === 'cup-pong') {
+        const state = data.game_state as unknown as CupPongMatchState;
+        setCupPongState({
+          ...createInitialCupPongState(),
+          ...state,
+          roundScores: state.roundScores || { player1: 0, player2: 0 },
+        });
+      } else {
+        const state = data.game_state as unknown as ExtendedGameState;
+        setGameState({
+          ...state,
+          roundScores: state.roundScores || { player1: 0, player2: 0 },
+          draws: state.draws || 0,
+          roundNumber: state.roundNumber || 1,
+          lastStarter: state.lastStarter || 'X',
+        });
+      }
     }
 
     // Fetch invite code
@@ -129,14 +152,19 @@ const MatchPage = () => {
           const updated = payload.new as Match;
           setMatch(prev => prev ? { ...prev, ...updated } : null);
           if (updated.game_state) {
-            const state = updated.game_state as unknown as ExtendedGameState;
-            setGameState({
-              ...state,
-              roundScores: state.roundScores || { player1: 0, player2: 0 },
-              draws: state.draws || 0,
-              roundNumber: state.roundNumber || 1,
-              lastStarter: state.lastStarter || 'X',
-            });
+            if (updated.game_type === 'cup-pong') {
+              const state = updated.game_state as unknown as CupPongMatchState;
+              setCupPongState(prev => ({ ...prev, ...state }));
+            } else {
+              const state = updated.game_state as unknown as ExtendedGameState;
+              setGameState({
+                ...state,
+                roundScores: state.roundScores || { player1: 0, player2: 0 },
+                draws: state.draws || 0,
+                roundNumber: state.roundNumber || 1,
+                lastStarter: state.lastStarter || 'X',
+              });
+            }
           }
         }
       )
@@ -169,9 +197,55 @@ const MatchPage = () => {
 
   const totalRounds = match?.rounds || 1;
   const roundsToWin = Math.ceil(totalRounds / 2);
+  const isCupPong = match?.game_type === 'cup-pong';
+  
+  // Determine turn and scores based on game type
+  const cupPongPlayerRole = isPlayer1 ? 'player1' : 'player2';
+  const isCupPongMyTurn = isCupPong && cupPongState.currentPlayer === cupPongPlayerRole;
+  const effectiveIsMyTurn = isCupPong ? isCupPongMyTurn : isMyTurn;
+  
   const myScore = isPlayer1 ? (gameState.roundScores?.player1 || 0) : (gameState.roundScores?.player2 || 0);
   const opponentScore = isPlayer1 ? (gameState.roundScores?.player2 || 0) : (gameState.roundScores?.player1 || 0);
-  const matchWinner = myScore >= roundsToWin ? 'player' : opponentScore >= roundsToWin ? 'opponent' : null;
+  const matchWinner = isCupPong 
+    ? (cupPongState.winner === cupPongPlayerRole ? 'player' : cupPongState.winner ? 'opponent' : null)
+    : (myScore >= roundsToWin ? 'player' : opponentScore >= roundsToWin ? 'opponent' : null);
+
+  // Cup Pong throw handler
+  const handleCupPongThrow = async (targetCup: number) => {
+    if (!match || match.state !== 'active' || !isCupPongMyTurn || cupPongState.winner) return;
+
+    const newState = processCupPongThrow(cupPongState, targetCup, cupPongPlayerRole);
+    setCupPongState(newState);
+
+    // Update database
+    const { error } = await supabase
+      .from('matches')
+      .update({
+        game_state: newState as any,
+        state: newState.winner ? 'complete' : 'active',
+        ended_at: newState.winner ? new Date().toISOString() : null,
+        winner_id: newState.winner 
+          ? match.match_players.find(p => p.player_symbol === (newState.winner === 'player1' ? 'X' : 'O'))?.player_id 
+          : null,
+      })
+      .eq('id', match.id);
+
+    if (error) console.error('Error updating cup pong:', error);
+
+    // Handle win
+    if (newState.winner) {
+      const winnerId = match.match_players.find(p => p.player_symbol === (newState.winner === 'player1' ? 'X' : 'O'))?.player_id;
+      if (winnerId) {
+        await supabase.rpc('release_escrow_to_winner', { _match_id: match.id, _winner_id: winnerId });
+        if (newState.winner === cupPongPlayerRole) {
+          toast({ title: '🎉 You Won!', description: 'Congratulations!' });
+          setTimeout(() => setShowWinnerCard(true), 1500);
+        }
+      }
+    } else if (newState.lastThrowResult === 'hit') {
+      toast({ title: '🎯 Hit!', description: 'You get another throw!' });
+    }
+  };
 
   const handleCellClick = async (index: number) => {
     if (!match || match.state !== 'active' || !isMyTurn || gameState.winner || gameState.board[index] || matchWinner) {
@@ -501,21 +575,35 @@ const MatchPage = () => {
         ) : (
           <Card className="border-border/50">
             <CardContent className="p-4">
-              {/* Turn indicator */}
-              {!gameState.winner && !matchWinner && (
-                <div className={`text-center mb-4 py-2 rounded-lg ${isMyTurn ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                  <p className="text-sm font-medium">
-                    {isMyTurn ? "Your turn!" : "Opponent's turn..."}
-                  </p>
-                </div>
-              )}
+              {/* Render game based on type */}
+              {isCupPong ? (
+                <CupPongGame
+                  state={cupPongState}
+                  playerRole={cupPongPlayerRole}
+                  onThrow={handleCupPongThrow}
+                  disabled={!isCupPongMyTurn || !!cupPongState.winner}
+                />
+              ) : (
+                <>
+                  {/* Turn indicator */}
+                  {!gameState.winner && !matchWinner && (
+                    <div className={`text-center mb-4 py-2 rounded-lg ${isMyTurn ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                      <p className="text-sm font-medium">
+                        {isMyTurn ? "Your turn!" : "Opponent's turn..."}
+                      </p>
+                    </div>
+                  )}
 
-              <div className="flex justify-center">
-                <TicTacToeBoard
-                  state={gameState}
-                  onCellClick={handleCellClick}
-                  playerSymbol={playerSymbol}
-                  disabled={!isMyTurn || !!gameState.winner || !!matchWinner}
+                  <div className="flex justify-center">
+                    <TicTacToeBoard
+                      state={gameState}
+                      onCellClick={handleCellClick}
+                      playerSymbol={playerSymbol}
+                      disabled={!isMyTurn || !!gameState.winner || !!matchWinner}
+                    />
+                  </div>
+                </>
+              )}
                 />
               </div>
 

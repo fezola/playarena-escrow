@@ -204,6 +204,20 @@ const instructions: Record<GameType, { title: string; rules: string[]; tips: str
       'Don\'t overthink - time is limited',
     ],
   },
+  'cup-pong': {
+    title: 'Cup Pong',
+    rules: [
+      'Each player has 6 cups arranged in a triangle',
+      'Take turns throwing a ball at opponent\'s cups',
+      'If you hit a cup, it\'s eliminated and you get another throw',
+      'First to eliminate all opponent cups wins!',
+    ],
+    tips: [
+      'Aim for the front cups first to open up the back',
+      'If you hit, you get another turn - capitalize on streaks!',
+      'Stay calm and focused for consistent throws',
+    ],
+  },
 };
 
 export function GameInstructions({ gameType }: GameInstructionsProps) {

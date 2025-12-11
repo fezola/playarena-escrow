@@ -11,7 +11,8 @@ export type GameType =
   | 'pool'
   | 'ping-pong'
   | 'battleship'
-  | 'trivia';
+  | 'trivia'
+  | 'cup-pong';
 
 export interface Player {
   id: string;
@@ -164,6 +165,7 @@ export const gameTypeLabels: Record<GameType, string> = {
   'ping-pong': 'Ping Pong',
   'battleship': 'Battleship',
   'trivia': 'Trivia',
+  'cup-pong': 'Cup Pong',
 };
 
 export const gameTypeIcons: Record<GameType, string> = {
@@ -180,4 +182,5 @@ export const gameTypeIcons: Record<GameType, string> = {
   'ping-pong': '🏓',
   'battleship': '🚢',
   'trivia': '🧠',
+  'cup-pong': '🍺',
 };
