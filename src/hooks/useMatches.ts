@@ -254,10 +254,21 @@ export function useMatches() {
       return false;
     }
 
-    if ((profile.wallet_balance || 0) < match.stake_amount) {
+    // Get the correct balance for the match currency
+    const currency = match.currency || 'USDC';
+    let userBalance = 0;
+    if (currency === 'USDC') {
+      userBalance = profile.wallet_balance || 0;
+    } else if (currency === 'BASE') {
+      userBalance = (profile as any).base_balance || 0;
+    } else if (currency === 'USDT') {
+      userBalance = (profile as any).usdt_balance || 0;
+    }
+
+    if (userBalance < match.stake_amount) {
       toast({
         title: 'Insufficient balance',
-        description: `You need $${match.stake_amount} to join. Add funds first.`,
+        description: `You need $${match.stake_amount} ${currency} to join. Add funds first.`,
         variant: 'destructive',
       });
       return false;
@@ -290,29 +301,58 @@ export function useMatches() {
       return false;
     }
 
-    // Update match to active
+    // Update match to active with initial game state
+    const initialGameState = {
+      board: Array(9).fill(null),
+      currentPlayer: 'X',
+      winner: null,
+      winningLine: null,
+      roundScores: { player1: 0, player2: 0 },
+      draws: 0,
+      roundNumber: 1,
+    };
+
     await supabase
       .from('matches')
-      .update({ state: 'active', started_at: new Date().toISOString() })
+      .update({ 
+        state: 'active', 
+        started_at: new Date().toISOString(),
+        current_round: 1,
+        game_state: initialGameState as any,
+      })
       .eq('id', matchId);
 
-    // Deduct stake and add to escrow
+    // Deduct stake from correct currency balance
+    const updateData: any = {};
+    if (currency === 'USDC') {
+      updateData.wallet_balance = userBalance - match.stake_amount;
+    } else if (currency === 'BASE') {
+      updateData.base_balance = userBalance - match.stake_amount;
+    } else if (currency === 'USDT') {
+      updateData.usdt_balance = userBalance - match.stake_amount;
+    }
+
     await supabase
       .from('profiles')
-      .update({ wallet_balance: (profile.wallet_balance || 0) - match.stake_amount })
+      .update(updateData)
       .eq('id', profile.id);
 
-    // Add to escrow
-    await supabase
+    // Add to escrow with correct currency
+    const { error: escrowError } = await supabase
       .from('escrow')
       .insert({
         match_id: matchId,
         player_id: profile.id,
         amount: match.stake_amount,
+        currency,
         status: 'held',
       });
 
-    // Record stake transaction
+    if (escrowError) {
+      console.error('Error creating escrow:', escrowError);
+    }
+
+    // Record stake transaction with currency
     await supabase
       .from('transactions')
       .insert({
@@ -322,6 +362,7 @@ export function useMatches() {
         status: 'confirmed',
         confirmed_at: new Date().toISOString(),
         match_id: matchId,
+        currency,
       });
 
     toast({
