@@ -160,7 +160,12 @@ export function GamePreviewDialog({ game, open, onOpenChange }: GamePreviewDialo
   const handlePlay = () => {
     onOpenChange(false);
     if (user) {
-      navigate(`/create?game=${game}`);
+      // Sports prediction has its own dedicated page
+      if (game === 'sports-prediction') {
+        navigate('/sports-prediction');
+      } else {
+        navigate(`/create?game=${game}`);
+      }
     } else {
       navigate('/auth');
     }
