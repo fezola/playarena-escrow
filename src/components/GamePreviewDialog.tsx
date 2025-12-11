@@ -125,6 +125,14 @@ const gameDetails: Record<GameType, {
     skill: 'Intermediate',
     color: 'from-orange-500 to-red-400',
   },
+  'cup-pong': {
+    description: 'Throw balls into cups! Hit = extra turn. First to clear all cups wins!',
+    rules: ['6 cups per player', 'Hit a cup to eliminate it', 'Hit = get another throw', 'First to clear all cups wins'],
+    players: '2 Players',
+    duration: '~5 min',
+    skill: 'Beginner',
+    color: 'from-amber-500 to-red-400',
+  },
 };
 
 const skillColors = {
