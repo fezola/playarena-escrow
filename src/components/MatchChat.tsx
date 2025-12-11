@@ -3,14 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, MessageCircle, X, Smile } from 'lucide-react';
+import { Send, MessageCircle, X, Smile, Sticker } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface ChatMessage {
   id: string;
@@ -29,15 +29,55 @@ interface MatchChatProps {
   currentPlayerId: string;
 }
 
-const QUICK_EMOJIS = ['😀', '😂', '🎉', '👍', '👎', '🔥', '💪', '🤔', '😱', '🎮', '🏆', '💀'];
-const QUICK_PHRASES = [
-  "Good game!",
-  "Nice move!",
-  "You got lucky!",
-  "Rematch?",
-  "GG WP",
-  "Let's go!",
-];
+const QUICK_EMOJIS = ['😀', '😂', '🎉', '👍', '👎', '🔥', '💪', '🤔', '😱', '🎮', '🏆', '💀', '😎', '🤣', '❤️', '💯', '🙌', '😤'];
+
+// Stickers - using emoji combinations and unicode art as stickers
+const STICKERS = {
+  reactions: [
+    { id: 'winner', emoji: '🏆✨', label: 'Winner' },
+    { id: 'loser', emoji: '😭💔', label: 'Lost' },
+    { id: 'gg', emoji: '🤝🎮', label: 'GG' },
+    { id: 'fire', emoji: '🔥🔥🔥', label: 'Fire' },
+    { id: 'clap', emoji: '👏👏👏', label: 'Clapping' },
+    { id: 'mind-blown', emoji: '🤯💥', label: 'Mind Blown' },
+    { id: 'flexing', emoji: '💪😤', label: 'Flexing' },
+    { id: 'crying', emoji: '😢😢', label: 'Crying' },
+    { id: 'laughing', emoji: '🤣😂🤣', label: 'LOL' },
+    { id: 'shocked', emoji: '😱😱', label: 'Shocked' },
+    { id: 'thinking', emoji: '🤔💭', label: 'Thinking' },
+    { id: 'cool', emoji: '😎✌️', label: 'Cool' },
+  ],
+  taunts: [
+    { id: 'easy', emoji: '😏💅', label: 'Easy' },
+    { id: 'bye', emoji: '👋😜', label: 'Bye Bye' },
+    { id: 'sleep', emoji: '😴💤', label: 'Sleepy' },
+    { id: 'bored', emoji: '🥱😑', label: 'Bored' },
+    { id: 'slow', emoji: '🐢💨', label: 'Slow' },
+    { id: 'scared', emoji: '🏃💨', label: 'Running' },
+    { id: 'trash', emoji: '🗑️😂', label: 'Trash' },
+    { id: 'noob', emoji: '👶🎮', label: 'Noob' },
+  ],
+  celebration: [
+    { id: 'party', emoji: '🎉🥳🎊', label: 'Party' },
+    { id: 'confetti', emoji: '🎊✨🎊', label: 'Confetti' },
+    { id: 'dancing', emoji: '💃🕺', label: 'Dancing' },
+    { id: 'champagne', emoji: '🍾🥂', label: 'Champagne' },
+    { id: 'money', emoji: '💰💵💰', label: 'Money' },
+    { id: 'rocket', emoji: '🚀🌟', label: 'Rocket' },
+    { id: 'crown', emoji: '👑✨', label: 'Crown' },
+    { id: 'diamond', emoji: '💎💎', label: 'Diamond' },
+  ],
+  animated: [
+    { id: 'spin', emoji: '🔄🌀🔄', label: 'Spinning', animated: true },
+    { id: 'heartbeat', emoji: '💓💗💓', label: 'Heartbeat', animated: true },
+    { id: 'explosion', emoji: '💥⭐💥', label: 'Explosion', animated: true },
+    { id: 'wave', emoji: '🌊🏄🌊', label: 'Wave', animated: true },
+    { id: 'sparkle', emoji: '✨⭐✨', label: 'Sparkle', animated: true },
+    { id: 'lightning', emoji: '⚡🌩️⚡', label: 'Lightning', animated: true },
+    { id: 'rainbow', emoji: '🌈✨🌈', label: 'Rainbow', animated: true },
+    { id: 'disco', emoji: '🪩🎶🪩', label: 'Disco', animated: true },
+  ],
+};
 
 export function MatchChat({ matchId, currentPlayerId }: MatchChatProps) {
   const { profile } = useAuth();
@@ -45,8 +85,15 @@ export function MatchChat({ matchId, currentPlayerId }: MatchChatProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [stickerTab, setStickerTab] = useState('reactions');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Scroll to bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   // Fetch initial messages
   useEffect(() => {
@@ -62,6 +109,7 @@ export function MatchChat({ matchId, currentPlayerId }: MatchChatProps) {
 
       if (!error && data) {
         setMessages(data as unknown as ChatMessage[]);
+        setTimeout(scrollToBottom, 100);
       }
     };
 
@@ -94,6 +142,7 @@ export function MatchChat({ matchId, currentPlayerId }: MatchChatProps) {
           };
 
           setMessages((prev) => [...prev, newMsg]);
+          setTimeout(scrollToBottom, 100);
           
           // Increment unread if chat is closed and not from current user
           if (!isOpen && payload.new.player_id !== currentPlayerId) {
@@ -108,12 +157,12 @@ export function MatchChat({ matchId, currentPlayerId }: MatchChatProps) {
     };
   }, [matchId, isOpen, currentPlayerId]);
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom when messages change or chat opens
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (isOpen) {
+      setTimeout(scrollToBottom, 100);
     }
-  }, [messages]);
+  }, [isOpen, messages.length]);
 
   // Clear unread when opening chat
   useEffect(() => {
@@ -142,13 +191,27 @@ export function MatchChat({ matchId, currentPlayerId }: MatchChatProps) {
     sendMessage(newMessage);
   };
 
-  const handleQuickPhrase = (phrase: string) => {
-    sendMessage(phrase);
-  };
-
   const handleEmoji = (emoji: string) => {
     setNewMessage((prev) => prev + emoji);
     inputRef.current?.focus();
+  };
+
+  const handleSticker = (stickerEmoji: string) => {
+    sendMessage(stickerEmoji);
+  };
+
+  const isSticker = (message: string) => {
+    // Check if message is a sticker (multiple emojis, short length, no regular text)
+    const emojiRegex = /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F000}-\u{1F02F}\u{1F0A0}-\u{1F0FF}\u{1F100}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1FA00}-\u{1FAFF}\u{200D}\u{FE0F}\s]+$/u;
+    return emojiRegex.test(message) && message.length <= 15;
+  };
+
+  const getStickerAnimation = (message: string) => {
+    const animatedSticker = STICKERS.animated.find(s => s.emoji === message);
+    if (animatedSticker) {
+      return 'animate-bounce';
+    }
+    return '';
   };
 
   return (
@@ -174,9 +237,9 @@ export function MatchChat({ matchId, currentPlayerId }: MatchChatProps) {
 
       {/* Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-20 right-4 z-50 w-80 max-h-[60vh] bg-card border border-border rounded-lg shadow-xl flex flex-col overflow-hidden">
+        <div className="fixed bottom-20 right-4 z-50 w-80 h-[60vh] max-h-[450px] bg-card border border-border rounded-lg shadow-xl flex flex-col overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between p-3 border-b border-border bg-muted/50">
+          <div className="flex items-center justify-between p-3 border-b border-border bg-muted/50 shrink-0">
             <span className="font-medium text-sm">Match Chat</span>
             <Button
               variant="ghost"
@@ -188,27 +251,37 @@ export function MatchChat({ matchId, currentPlayerId }: MatchChatProps) {
             </Button>
           </div>
 
-          {/* Messages */}
-          <ScrollArea className="flex-1 p-3" ref={scrollRef as any}>
-            <div className="space-y-3">
-              {messages.length === 0 ? (
-                <p className="text-muted-foreground text-sm text-center py-4">
-                  No messages yet. Say hello! 👋
-                </p>
-              ) : (
-                messages.map((msg) => {
-                  const isOwn = msg.player_id === currentPlayerId;
-                  return (
-                    <div
-                      key={msg.id}
-                      className={cn(
-                        "flex flex-col gap-1",
-                        isOwn ? "items-end" : "items-start"
-                      )}
-                    >
-                      <span className="text-xs text-muted-foreground">
-                        {isOwn ? 'You' : msg.player?.display_name || 'Player'}
-                      </span>
+          {/* Messages - Scrollable */}
+          <div 
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto p-3 space-y-3"
+          >
+            {messages.length === 0 ? (
+              <p className="text-muted-foreground text-sm text-center py-4">
+                No messages yet. Say hello! 👋
+              </p>
+            ) : (
+              messages.map((msg) => {
+                const isOwn = msg.player_id === currentPlayerId;
+                const msgIsSticker = isSticker(msg.message);
+                const animation = getStickerAnimation(msg.message);
+                
+                return (
+                  <div
+                    key={msg.id}
+                    className={cn(
+                      "flex flex-col gap-1",
+                      isOwn ? "items-end" : "items-start"
+                    )}
+                  >
+                    <span className="text-xs text-muted-foreground">
+                      {isOwn ? 'You' : msg.player?.display_name || 'Player'}
+                    </span>
+                    {msgIsSticker ? (
+                      <div className={cn("text-4xl", animation)}>
+                        {msg.message}
+                      </div>
+                    ) : (
                       <div
                         className={cn(
                           "rounded-lg px-3 py-2 max-w-[85%] break-words text-sm",
@@ -219,40 +292,26 @@ export function MatchChat({ matchId, currentPlayerId }: MatchChatProps) {
                       >
                         {msg.message}
                       </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </ScrollArea>
-
-          {/* Quick Phrases */}
-          <div className="px-3 py-2 border-t border-border">
-            <div className="flex gap-1 flex-wrap">
-              {QUICK_PHRASES.slice(0, 3).map((phrase) => (
-                <Button
-                  key={phrase}
-                  variant="outline"
-                  size="sm"
-                  className="text-xs h-6 px-2"
-                  onClick={() => handleQuickPhrase(phrase)}
-                >
-                  {phrase}
-                </Button>
-              ))}
-            </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Input */}
-          <form onSubmit={handleSubmit} className="p-3 border-t border-border">
+          <form onSubmit={handleSubmit} className="p-3 border-t border-border shrink-0">
             <div className="flex gap-2">
+              {/* Emoji Picker */}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0">
                     <Smile className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-64 p-2" align="start">
+                <PopoverContent className="w-64 p-2" align="start" side="top">
+                  <p className="text-xs text-muted-foreground mb-2">Emojis</p>
                   <div className="grid grid-cols-6 gap-1">
                     {QUICK_EMOJIS.map((emoji) => (
                       <Button
@@ -266,24 +325,92 @@ export function MatchChat({ matchId, currentPlayerId }: MatchChatProps) {
                       </Button>
                     ))}
                   </div>
-                  <div className="mt-2 pt-2 border-t border-border">
-                    <p className="text-xs text-muted-foreground mb-1">Quick phrases</p>
-                    <div className="flex flex-wrap gap-1">
-                      {QUICK_PHRASES.map((phrase) => (
-                        <Button
-                          key={phrase}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs h-6 px-2"
-                          onClick={() => handleQuickPhrase(phrase)}
-                        >
-                          {phrase}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
                 </PopoverContent>
               </Popover>
+
+              {/* Sticker Picker */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0">
+                    <Sticker className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-2" align="start" side="top">
+                  <Tabs value={stickerTab} onValueChange={setStickerTab}>
+                    <TabsList className="grid w-full grid-cols-4 h-8">
+                      <TabsTrigger value="reactions" className="text-xs">React</TabsTrigger>
+                      <TabsTrigger value="taunts" className="text-xs">Taunt</TabsTrigger>
+                      <TabsTrigger value="celebration" className="text-xs">Party</TabsTrigger>
+                      <TabsTrigger value="animated" className="text-xs">Animated</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="reactions" className="mt-2">
+                      <div className="grid grid-cols-4 gap-1">
+                        {STICKERS.reactions.map((sticker) => (
+                          <Button
+                            key={sticker.id}
+                            variant="ghost"
+                            size="sm"
+                            className="h-12 p-0 text-xl hover:bg-muted flex flex-col"
+                            onClick={() => handleSticker(sticker.emoji)}
+                            title={sticker.label}
+                          >
+                            <span>{sticker.emoji}</span>
+                          </Button>
+                        ))}
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="taunts" className="mt-2">
+                      <div className="grid grid-cols-4 gap-1">
+                        {STICKERS.taunts.map((sticker) => (
+                          <Button
+                            key={sticker.id}
+                            variant="ghost"
+                            size="sm"
+                            className="h-12 p-0 text-xl hover:bg-muted flex flex-col"
+                            onClick={() => handleSticker(sticker.emoji)}
+                            title={sticker.label}
+                          >
+                            <span>{sticker.emoji}</span>
+                          </Button>
+                        ))}
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="celebration" className="mt-2">
+                      <div className="grid grid-cols-4 gap-1">
+                        {STICKERS.celebration.map((sticker) => (
+                          <Button
+                            key={sticker.id}
+                            variant="ghost"
+                            size="sm"
+                            className="h-12 p-0 text-xl hover:bg-muted flex flex-col"
+                            onClick={() => handleSticker(sticker.emoji)}
+                            title={sticker.label}
+                          >
+                            <span>{sticker.emoji}</span>
+                          </Button>
+                        ))}
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="animated" className="mt-2">
+                      <div className="grid grid-cols-4 gap-1">
+                        {STICKERS.animated.map((sticker) => (
+                          <Button
+                            key={sticker.id}
+                            variant="ghost"
+                            size="sm"
+                            className="h-12 p-0 text-xl hover:bg-muted flex flex-col animate-pulse"
+                            onClick={() => handleSticker(sticker.emoji)}
+                            title={sticker.label}
+                          >
+                            <span>{sticker.emoji}</span>
+                          </Button>
+                        ))}
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </PopoverContent>
+              </Popover>
+
               <Input
                 ref={inputRef}
                 value={newMessage}

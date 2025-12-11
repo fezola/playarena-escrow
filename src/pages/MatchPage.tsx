@@ -104,13 +104,19 @@ const MatchPage = () => {
   useEffect(() => {
     fetchMatch();
 
-    // Subscribe to realtime updates
+    // Subscribe to realtime updates with optimized settings for mobile
     const channel = supabase
-      .channel(`match-${id}`)
+      .channel(`match-${id}`, {
+        config: {
+          broadcast: { self: true },
+          presence: { key: profile?.id || 'anon' },
+        },
+      })
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'matches', filter: `id=eq.${id}` },
+        { event: 'UPDATE', schema: 'public', table: 'matches', filter: `id=eq.${id}` },
         (payload) => {
+          console.log('[Realtime] Match update received:', new Date().toISOString());
           const updated = payload.new as Match;
           setMatch(prev => prev ? { ...prev, ...updated } : null);
           if (updated.game_state) {
@@ -124,8 +130,9 @@ const MatchPage = () => {
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'match_players', filter: `match_id=eq.${id}` },
+        { event: 'INSERT', schema: 'public', table: 'match_players', filter: `match_id=eq.${id}` },
         () => {
+          console.log('[Realtime] Player joined:', new Date().toISOString());
           fetchMatch();
           toast({
             title: 'Player joined!',
@@ -133,7 +140,9 @@ const MatchPage = () => {
           });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Realtime] Subscription status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -163,7 +172,9 @@ const MatchPage = () => {
       return;
     }
 
-    // Make move
+    console.log('[Game] Making move at index:', index, 'Time:', new Date().toISOString());
+
+    // Make move (optimistic update first for instant feedback)
     const newBoard = [...gameState.board] as TicTacToeCell[];
     newBoard[index] = playerSymbol;
 
@@ -218,8 +229,12 @@ const MatchPage = () => {
           : match.match_players.find(p => p.player_symbol === 'O')?.player_id)
       : null;
 
+    // Optimistic update - show move immediately
+    setGameState(newState);
+
     // Update game state in database
-    await supabase
+    console.log('[Game] Sending update to database:', new Date().toISOString());
+    const { error } = await supabase
       .from('matches')
       .update({
         game_state: newState as unknown as Database['public']['Tables']['matches']['Update']['game_state'],
@@ -230,7 +245,11 @@ const MatchPage = () => {
       })
       .eq('id', match.id);
 
-    setGameState(newState);
+    if (error) {
+      console.error('[Game] Error updating match:', error);
+    } else {
+      console.log('[Game] Update sent successfully:', new Date().toISOString());
+    }
 
     // Handle escrow release only when MATCH is complete (not just round)
     if (matchComplete) {
