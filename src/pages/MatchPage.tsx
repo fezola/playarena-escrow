@@ -16,7 +16,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
-import { Clock, DollarSign, Trophy, RefreshCw, ArrowLeft, Copy, Share2, Loader2 } from 'lucide-react';
+import { Clock, DollarSign, Trophy, RefreshCw, ArrowLeft, Copy, Share2, Loader2, XCircle } from 'lucide-react';
 import { TicTacToeState, TicTacToeCell, gameTypeLabels } from '@/types/game';
 
 type Match = Database['public']['Tables']['matches']['Row'];
@@ -437,6 +437,60 @@ const MatchPage = () => {
     setGameState(newState);
   };
 
+  // Cancel game and refund escrow
+  const handleCancelGame = async () => {
+    if (!match || !profile) return;
+    
+    // Only creator can cancel, and only in waiting/active state
+    if (match.creator_id !== profile.id) {
+      toast({
+        title: 'Cannot cancel',
+        description: 'Only the match creator can cancel this game.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (match.state !== 'waiting' && match.state !== 'active') {
+      toast({
+        title: 'Cannot cancel',
+        description: 'This match cannot be cancelled.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Call refund_escrow function
+      const { data, error } = await supabase.rpc('refund_escrow', { _match_id: match.id });
+      
+      if (error) throw error;
+
+      // Update match to cancelled
+      await supabase
+        .from('matches')
+        .update({ state: 'cancelled', ended_at: new Date().toISOString() })
+        .eq('id', match.id);
+
+      toast({
+        title: 'Match Cancelled',
+        description: 'All stakes have been refunded to players.',
+      });
+
+      navigate('/');
+    } catch (error) {
+      console.error('Error cancelling match:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to cancel match. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const isCreator = match?.creator_id === profile?.id;
+  const canCancel = isCreator && (match?.state === 'waiting' || match?.state === 'active');
+
   if (loading) {
     return (
       <MobileLayout hideNav>
@@ -566,10 +620,17 @@ const MatchPage = () => {
                 </div>
               )}
               
-              <Button onClick={handleCopyLink} variant="outline" className="w-full">
+              <Button onClick={handleCopyLink} variant="outline" className="w-full mb-3">
                 <Copy className="h-4 w-4 mr-2" />
                 Copy Match Link
               </Button>
+              
+              {canCancel && (
+                <Button onClick={handleCancelGame} variant="destructive" className="w-full">
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Cancel Game & Refund
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
