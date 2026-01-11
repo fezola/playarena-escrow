@@ -54,7 +54,7 @@ export default function Profile() {
   // REMOVED: Auto-generate wallet - causes 404 errors when Edge Functions aren't deployed
   // Users can manually generate wallet by clicking the "Generate Wallet" button if needed
 
-  const generateWallet = async () => {
+  const generateWallet = async (forceRegenerate = false) => {
     if (isGeneratingWallet) return;
     
     setIsGeneratingWallet(true);
@@ -62,6 +62,14 @@ export default function Profile() {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
         throw new Error('No session');
+      }
+
+      // If force regenerating, clear the old wallet first
+      if (forceRegenerate && profile?.id) {
+        await supabase
+          .from('profiles')
+          .update({ wallet_address: null, encrypted_private_key: null })
+          .eq('id', profile.id);
       }
 
       const { data, error } = await supabase.functions.invoke('generate-wallet', {
@@ -75,8 +83,10 @@ export default function Profile() {
       if (data?.success) {
         await refreshProfile();
         toast({
-          title: 'Wallet created!',
-          description: 'Your deposit address is ready.',
+          title: forceRegenerate ? 'New wallet created!' : 'Wallet created!',
+          description: forceRegenerate 
+            ? 'Your new deposit address is ready. Note: Any funds in your old wallet are not recoverable.'
+            : 'Your deposit address is ready.',
         });
       }
     } catch (error) {
@@ -429,14 +439,32 @@ export default function Profile() {
         setWithdrawAmount('');
         setWithdrawAddress('');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Withdraw error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Something went wrong';
-      toast({
-        title: 'Withdrawal failed',
-        description: errorMessage,
-        variant: 'destructive',
-      });
+      
+      // Check if it's a wallet decryption error
+      const isDecryptionError = error?.message?.includes('Decryption failed') || 
+                                 error?.context?.message?.includes('Decryption failed') ||
+                                 (error?.message && error.message.includes('500'));
+      
+      if (isDecryptionError) {
+        toast({
+          title: 'Wallet Error',
+          description: 'Your wallet needs to be regenerated. Please create a new wallet.',
+          variant: 'destructive',
+        });
+        // Offer to regenerate wallet
+        if (confirm('Your wallet encryption is corrupted. Would you like to generate a new wallet? Note: Any funds in your old wallet address will not be accessible from the new wallet.')) {
+          generateWallet(true);
+        }
+      } else {
+        const errorMessage = error instanceof Error ? error.message : 'Something went wrong';
+        toast({
+          title: 'Withdrawal failed',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -574,7 +602,7 @@ export default function Profile() {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={generateWallet}
+                  onClick={() => generateWallet(false)}
                   disabled={isGeneratingWallet}
                 >
                   Create Wallet
@@ -646,6 +674,30 @@ export default function Profile() {
                 Withdraw
               </Button>
             </div>
+            
+            {/* Regenerate wallet option for users with corrupted wallets */}
+            {profile?.wallet_address && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full mt-2 text-xs text-muted-foreground hover:text-destructive"
+                onClick={() => {
+                  if (confirm('This will create a new wallet. Any funds in your current wallet address will NOT be transferred. Only do this if you cannot withdraw. Continue?')) {
+                    generateWallet(true);
+                  }
+                }}
+                disabled={isGeneratingWallet}
+              >
+                {isGeneratingWallet ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    Regenerating...
+                  </>
+                ) : (
+                  'Having issues? Regenerate wallet'
+                )}
+              </Button>
+            )}
           </CardContent>
         </Card>
 

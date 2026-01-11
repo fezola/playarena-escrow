@@ -199,8 +199,8 @@ serve(async (req) => {
     const wallet = await generateWallet();
     console.log('Generated wallet address:', wallet.address);
 
-    // Encrypt private key
-    const encryptedPrivateKey = encryptPrivateKey(wallet.privateKey, encryptionKey);
+    // Encrypt private key (MUST await the async function!)
+    const encryptedPrivateKey = await encryptPrivateKey(wallet.privateKey, encryptionKey);
 
     // Update profile with wallet info
     const { error: updateError } = await supabaseAdmin
