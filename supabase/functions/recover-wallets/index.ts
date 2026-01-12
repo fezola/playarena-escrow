@@ -7,47 +7,35 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Decrypt private key using AES-GCM
-async function decryptPrivateKey(encryptedData: string, encryptionKey: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-
-  const combined = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
-  const salt = combined.slice(0, 16);
-  const iv = combined.slice(16, 28);
-  const encrypted = combined.slice(28);
-
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(encryptionKey),
-    { name: 'PBKDF2' },
-    false,
-    ['deriveBits', 'deriveKey']
-  );
-
-  const key = await crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: salt,
-      iterations: 100000,
-      hash: 'SHA-256'
-    },
-    keyMaterial,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt']
-  );
-
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: iv },
-    key,
-    encrypted
-  );
-
-  return decoder.decode(decrypted);
+// OLD XOR-based decryption (legacy method)
+function decryptPrivateKeyXOR(encryptedData: string, encryptionKey: string): string {
+  const encrypted = atob(encryptedData);
+  let result = '';
+  
+  for (let i = 0; i < encrypted.length; i++) {
+    result += String.fromCharCode(
+      encrypted.charCodeAt(i) ^ encryptionKey.charCodeAt(i % encryptionKey.length)
+    );
+  }
+  
+  return result;
 }
 
-// Encrypt private key using AES-GCM
+// Try decoding as raw base64 (maybe it's not encrypted at all)
+function tryBase64Decode(data: string): string | null {
+  try {
+    return atob(data);
+  } catch {
+    return null;
+  }
+}
+
+// Try treating as hex directly
+function isHex(str: string): boolean {
+  return /^(0x)?[a-fA-F0-9]+$/.test(str);
+}
+
+// AES-GCM encryption for re-encrypting recovered keys
 async function encryptPrivateKey(privateKey: string, encryptionKey: string): Promise<string> {
   const encoder = new TextEncoder();
 
@@ -90,14 +78,20 @@ async function encryptPrivateKey(privateKey: string, encryptionKey: string): Pro
   return btoa(String.fromCharCode(...combined));
 }
 
-function verifyKeyMatchesAddress(privateKey: string, expectedAddress: string): boolean {
+function getAddressFromPrivateKey(privateKey: string): string | null {
   try {
     const pk = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
     const account = privateKeyToAccount(pk as `0x${string}`);
-    return account.address.toLowerCase() === expectedAddress.toLowerCase();
+    return account.address;
   } catch {
-    return false;
+    return null;
   }
+}
+
+function isValidPrivateKey(pk: string): boolean {
+  if (!pk) return false;
+  const normalized = pk.startsWith('0x') ? pk.slice(2) : pk;
+  return /^[a-fA-F0-9]{64}$/.test(normalized);
 }
 
 serve(async (req) => {
@@ -107,26 +101,20 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const oldEncryptionKey = body.oldEncryptionKey;
-    const dryRun = body.dryRun !== false; // Default to dry run for safety
+    const keysToTry = body.keysToTry || [];
+    const dryRun = body.dryRun !== false;
     
-    if (!oldEncryptionKey) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Missing oldEncryptionKey in request body',
-          usage: 'POST with { "oldEncryptionKey": "your-old-key", "dryRun": false }'
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const currentEncryptionKey = Deno.env.get('WALLET_ENCRYPTION_KEY')!;
 
+    // Add current key to the list if not already there
+    if (!keysToTry.includes(currentEncryptionKey)) {
+      keysToTry.push(currentEncryptionKey);
+    }
+
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get all wallets with encrypted keys
     const { data: profiles, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('id, username, wallet_address, encrypted_private_key, wallet_balance')
@@ -135,41 +123,89 @@ serve(async (req) => {
     if (profileError) throw profileError;
 
     const results: any[] = [];
-    let recoveredCount = 0;
-    let totalRecoveredBalance = 0;
 
     for (const profile of profiles || []) {
       if (!profile.encrypted_private_key || !profile.wallet_address) continue;
-      if (profile.encrypted_private_key.length < 10) continue; // Skip invalid entries
+      if (profile.encrypted_private_key.length < 10) continue;
 
       const result: any = {
         id: profile.id,
         username: profile.username,
         wallet_address: profile.wallet_address,
         wallet_balance: profile.wallet_balance,
-        status: 'pending',
+        encrypted_key_length: profile.encrypted_private_key.length,
+        status: 'analyzing',
+        decryption_attempts: [],
       };
 
-      try {
-        // Try to decrypt with old key
-        const decryptedPrivateKey = await decryptPrivateKey(profile.encrypted_private_key, oldEncryptionKey);
-        
-        // Verify it matches the wallet address
-        if (!verifyKeyMatchesAddress(decryptedPrivateKey, profile.wallet_address)) {
-          result.status = 'failed';
-          result.error = 'Decrypted key does not match wallet address';
-          results.push(result);
-          continue;
+      let foundKey: string | null = null;
+      let foundMethod: string | null = null;
+
+      // Method 1: Check if it's just raw base64-encoded private key (no encryption)
+      const base64Decoded = tryBase64Decode(profile.encrypted_private_key);
+      if (base64Decoded && isValidPrivateKey(base64Decoded)) {
+        const derivedAddress = getAddressFromPrivateKey(base64Decoded);
+        result.decryption_attempts.push({
+          method: 'raw_base64',
+          derived_address: derivedAddress,
+          matches: derivedAddress?.toLowerCase() === profile.wallet_address.toLowerCase(),
+        });
+        if (derivedAddress?.toLowerCase() === profile.wallet_address.toLowerCase()) {
+          foundKey = base64Decoded;
+          foundMethod = 'raw_base64';
         }
+      }
 
+      // Method 2: Try XOR with each provided key
+      for (const testKey of keysToTry) {
+        if (foundKey) break;
+        
+        try {
+          const xorDecrypted = decryptPrivateKeyXOR(profile.encrypted_private_key, testKey);
+          const derivedAddress = isValidPrivateKey(xorDecrypted) ? getAddressFromPrivateKey(xorDecrypted) : null;
+          
+          result.decryption_attempts.push({
+            method: `xor_${testKey.substring(0, 10)}...`,
+            decrypted_preview: xorDecrypted.substring(0, 15) + '...',
+            is_valid_pk: isValidPrivateKey(xorDecrypted),
+            derived_address: derivedAddress,
+            matches: derivedAddress?.toLowerCase() === profile.wallet_address.toLowerCase(),
+          });
+
+          if (derivedAddress?.toLowerCase() === profile.wallet_address.toLowerCase()) {
+            foundKey = xorDecrypted;
+            foundMethod = `xor_with_key_${testKey.substring(0, 10)}`;
+          }
+        } catch (e) {
+          result.decryption_attempts.push({
+            method: `xor_${testKey.substring(0, 10)}...`,
+            error: String(e),
+          });
+        }
+      }
+
+      // Method 3: Check if it's the private key stored directly (not base64)
+      if (!foundKey && isHex(profile.encrypted_private_key)) {
+        const derivedAddress = getAddressFromPrivateKey(profile.encrypted_private_key);
+        result.decryption_attempts.push({
+          method: 'raw_hex',
+          derived_address: derivedAddress,
+          matches: derivedAddress?.toLowerCase() === profile.wallet_address.toLowerCase(),
+        });
+        if (derivedAddress?.toLowerCase() === profile.wallet_address.toLowerCase()) {
+          foundKey = profile.encrypted_private_key;
+          foundMethod = 'raw_hex';
+        }
+      }
+
+      if (foundKey) {
         result.status = 'recoverable';
-        result.verified = true;
-
+        result.recovery_method = foundMethod;
+        
         if (!dryRun) {
-          // Re-encrypt with current key
-          const newEncryptedKey = await encryptPrivateKey(decryptedPrivateKey, currentEncryptionKey);
+          // Re-encrypt with current key using AES-GCM
+          const newEncryptedKey = await encryptPrivateKey(foundKey, currentEncryptionKey);
 
-          // Update database
           const { error: updateError } = await supabaseAdmin
             .from('profiles')
             .update({ encrypted_private_key: newEncryptedKey })
@@ -180,17 +216,10 @@ serve(async (req) => {
             result.error = updateError.message;
           } else {
             result.status = 'recovered';
-            recoveredCount++;
-            totalRecoveredBalance += profile.wallet_balance || 0;
           }
-        } else {
-          recoveredCount++;
-          totalRecoveredBalance += profile.wallet_balance || 0;
         }
-
-      } catch (e: any) {
+      } else {
         result.status = 'failed';
-        result.error = e.message;
       }
 
       results.push(result);
@@ -198,24 +227,21 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        mode: dryRun ? 'DRY RUN - No changes made' : 'LIVE - Changes applied',
+        mode: dryRun ? 'DRY RUN' : 'LIVE',
+        instructions: 'Pass { "keysToTry": ["key1", "key2"], "dryRun": false } to recover',
         summary: {
           total_wallets: results.length,
-          recoverable: results.filter(r => r.status === 'recoverable' || r.status === 'recovered').length,
+          recoverable: results.filter(r => r.status === 'recoverable').length,
           recovered: results.filter(r => r.status === 'recovered').length,
           failed: results.filter(r => r.status === 'failed').length,
-          total_balance_recovered: totalRecoveredBalance,
         },
         wallets: results,
-        next_step: dryRun 
-          ? 'If results look good, call again with { "oldEncryptionKey": "...", "dryRun": false }'
-          : 'Recovery complete! Users can now withdraw their funds.'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error: unknown) {
-    console.error('Error in recover-wallets function:', error);
+    console.error('Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({ error: errorMessage }),
