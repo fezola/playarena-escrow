@@ -224,6 +224,47 @@ export type Database = {
           },
         ]
       }
+      match_settlement_log: {
+        Row: {
+          created_at: string
+          id: string
+          match_id: string
+          platform_fee: number
+          settled_by: string
+          settlement_data: Json
+          skill_updates: Json
+          total_pot: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          match_id: string
+          platform_fee: number
+          settled_by?: string
+          settlement_data: Json
+          skill_updates: Json
+          total_pot: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          match_id?: string
+          platform_fee?: number
+          settled_by?: string
+          settlement_data?: Json
+          skill_updates?: Json
+          total_pot?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_settlement_log_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: true
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matches: {
         Row: {
           contract_match_id: string | null
@@ -520,65 +561,158 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          avg_stake: number
           base_balance: number | null
+          consistency_index: number
           created_at: string
           current_streak: number
           display_name: string | null
           encrypted_private_key: string | null
           id: string
           level: number | null
+          risk_tier: string
+          skill_score: number
           total_earnings: number
           total_losses: number
+          total_matches_played: number
           total_wins: number
           updated_at: string
           usdt_balance: number | null
           user_id: string
           username: string | null
+          volatility_score: number
           wallet_address: string | null
           wallet_balance: number | null
+          win_rate: number
           xp: number | null
         }
         Insert: {
           avatar_url?: string | null
+          avg_stake?: number
           base_balance?: number | null
+          consistency_index?: number
           created_at?: string
           current_streak?: number
           display_name?: string | null
           encrypted_private_key?: string | null
           id?: string
           level?: number | null
+          risk_tier?: string
+          skill_score?: number
           total_earnings?: number
           total_losses?: number
+          total_matches_played?: number
           total_wins?: number
           updated_at?: string
           usdt_balance?: number | null
           user_id: string
           username?: string | null
+          volatility_score?: number
           wallet_address?: string | null
           wallet_balance?: number | null
+          win_rate?: number
           xp?: number | null
         }
         Update: {
           avatar_url?: string | null
+          avg_stake?: number
           base_balance?: number | null
+          consistency_index?: number
           created_at?: string
           current_streak?: number
           display_name?: string | null
           encrypted_private_key?: string | null
           id?: string
           level?: number | null
+          risk_tier?: string
+          skill_score?: number
           total_earnings?: number
           total_losses?: number
+          total_matches_played?: number
           total_wins?: number
           updated_at?: string
           usdt_balance?: number | null
           user_id?: string
           username?: string | null
+          volatility_score?: number
           wallet_address?: string | null
           wallet_balance?: number | null
+          win_rate?: number
           xp?: number | null
         }
         Relationships: []
+      }
+      skill_history: {
+        Row: {
+          created_at: string
+          game_type: string
+          id: string
+          match_id: string
+          match_result: string
+          opponent_skill: number
+          payout_amount: number
+          player_id: string
+          risk_tier_after: string
+          risk_tier_before: string
+          skill_after: number
+          skill_before: number
+          skill_delta: number
+          stake_amount: number
+          volatility_after: number
+          volatility_before: number
+        }
+        Insert: {
+          created_at?: string
+          game_type: string
+          id?: string
+          match_id: string
+          match_result: string
+          opponent_skill: number
+          payout_amount?: number
+          player_id: string
+          risk_tier_after: string
+          risk_tier_before: string
+          skill_after: number
+          skill_before: number
+          skill_delta: number
+          stake_amount: number
+          volatility_after: number
+          volatility_before: number
+        }
+        Update: {
+          created_at?: string
+          game_type?: string
+          id?: string
+          match_id?: string
+          match_result?: string
+          opponent_skill?: number
+          payout_amount?: number
+          player_id?: string
+          risk_tier_after?: string
+          risk_tier_before?: string
+          skill_after?: number
+          skill_before?: number
+          skill_delta?: number
+          stake_amount?: number
+          volatility_after?: number
+          volatility_before?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_history_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "skill_history_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sports_matches: {
         Row: {
@@ -696,6 +830,15 @@ export type Database = {
       refund_escrow: { Args: { _match_id: string }; Returns: Json }
       release_escrow_to_winner: {
         Args: { _match_id: string; _winner_id: string }
+        Returns: Json
+      }
+      settle_match_with_skill: {
+        Args: {
+          _match_id: string
+          _settlement_data: Json
+          _skill_updates: Json
+          _winner_id: string
+        }
         Returns: Json
       }
       settle_prediction_pool: {
