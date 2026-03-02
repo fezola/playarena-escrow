@@ -13,17 +13,9 @@ const gameDescriptions: Record<GameType, string> = {
   'tic-tac-toe': 'Quick 1v1 strategy game. First to 3 in a row wins!',
   'chess': 'Classic battle of minds. Checkmate to claim victory.',
   'scrabble': 'Word power showdown. Highest score takes all.',
-  'connect-four': 'Drop discs to connect 4 in a row!',
   'rock-paper-scissors': 'Classic hand game. Best of 3 wins!',
-  'wordle': 'Guess the 5-letter word in fewer tries.',
   'checkers': 'Jump and capture all opponent pieces.',
   'dots-and-boxes': 'Complete boxes to claim territory.',
-  'boggle': 'Find words in the letter grid.',
-  'pool': 'Sink all your balls first!',
-  'ping-pong': 'Fast-paced table tennis action.',
-  'battleship': 'Sink the enemy fleet!',
-  'trivia': 'Test your knowledge against opponents.',
-  'cup-pong': 'Throw balls into cups. Hit = extra turn!',
   'sports-prediction': 'Predict sports scores and win!',
 };
 
@@ -31,26 +23,16 @@ const gameStats: Record<GameType, { time: string; skill: string }> = {
   'tic-tac-toe': { time: '~2 min', skill: 'Beginner' },
   'chess': { time: '~15 min', skill: 'Advanced' },
   'scrabble': { time: '~20 min', skill: 'Intermediate' },
-  'connect-four': { time: '~5 min', skill: 'Beginner' },
   'rock-paper-scissors': { time: '~1 min', skill: 'Beginner' },
-  'wordle': { time: '~5 min', skill: 'Intermediate' },
   'checkers': { time: '~10 min', skill: 'Intermediate' },
   'dots-and-boxes': { time: '~10 min', skill: 'Beginner' },
-  'boggle': { time: '~5 min', skill: 'Intermediate' },
-  'pool': { time: '~10 min', skill: 'Intermediate' },
-  'ping-pong': { time: '~5 min', skill: 'Intermediate' },
-  'battleship': { time: '~15 min', skill: 'Intermediate' },
-  'trivia': { time: '~5 min', skill: 'Beginner' },
-  'cup-pong': { time: '~5 min', skill: 'Beginner' },
   'sports-prediction': { time: '~1-2 hrs', skill: 'Intermediate' },
 };
 
 export function GameSelector({ selected, onChange }: GameSelectorProps) {
   const games: GameType[] = [
-    'tic-tac-toe', 'connect-four', 'rock-paper-scissors', 'cup-pong',
-    'wordle', 'checkers', 'battleship', 'trivia',
-    'chess', 'scrabble', 'sports-prediction', 'dots-and-boxes', 'boggle', 
-    'pool', 'ping-pong'
+    'tic-tac-toe', 'rock-paper-scissors', 'checkers',
+    'chess', 'scrabble', 'sports-prediction', 'dots-and-boxes',
   ];
 
   return (

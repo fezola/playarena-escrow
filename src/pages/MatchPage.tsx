@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MobileLayout } from '@/components/MobileLayout';
 import { TicTacToeBoard } from '@/components/games/TicTacToeBoard';
-import { CupPongGame, CupPongState, createInitialCupPongState, processCupPongThrow } from '@/components/games/CupPongGame';
+// CupPongGame was removed
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -35,9 +35,26 @@ interface ExtendedGameState extends TicTacToeState {
   lastStarter?: 'X' | 'O';
 }
 
-// Cup Pong extended state for matches
-interface CupPongMatchState extends CupPongState {
+// CupPong types removed
+interface CupPongMatchState {
+  currentPlayer?: string;
+  winner?: string | null;
+  lastThrowResult?: string;
   roundScores?: { player1: number; player2: number };
+}
+
+interface CupPongState {
+  currentPlayer?: string;
+  winner?: string | null;
+  lastThrowResult?: string;
+}
+
+function createInitialCupPongState(): CupPongState {
+  return { currentPlayer: 'player1', winner: null };
+}
+
+function processCupPongThrow(state: CupPongState, _target: number, _role: string): CupPongState {
+  return state;
 }
 
 const MatchPage = () => {
@@ -520,7 +537,7 @@ const MatchPage = () => {
             <Badge className={match.state === 'active' ? 'bg-success' : match.state === 'waiting' ? 'bg-warning' : 'bg-muted'}>
               {match.state === 'waiting' ? 'Waiting' : match.state === 'active' ? 'Playing' : 'Complete'}
             </Badge>
-            <GameInstructions gameType={match.game_type} />
+            <GameInstructions gameType={match.game_type as any} />
           </div>
           <Button variant="ghost" size="sm" onClick={handleCopyLink}>
             <Share2 className="h-4 w-4" />
@@ -637,13 +654,8 @@ const MatchPage = () => {
           <Card className="border-border/50">
             <CardContent className="p-4">
               {/* Render game based on type */}
-              {isCupPong ? (
-                <CupPongGame
-                  state={cupPongState}
-                  playerRole={cupPongPlayerRole}
-                  onThrow={handleCupPongThrow}
-                  disabled={!isCupPongMyTurn || !!cupPongState.winner}
-                />
+              {false ? (
+                <div />
               ) : (
                 <>
                   {/* Turn indicator */}
