@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MobileLayout } from '@/components/MobileLayout';
 import { GameSelector } from '@/components/games/GameSelector';
 import { StakeInput } from '@/components/StakeInput';
@@ -16,12 +16,14 @@ import { ArrowLeft, ArrowRight, Loader2, Wallet, CheckCircle } from 'lucide-reac
 
 const CreateMatch = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, profile } = useAuth();
   const { createMatch } = useMatches();
   const { toast } = useToast();
 
-  const [step, setStep] = useState(1);
-  const [gameType, setGameType] = useState<GameType>('tic-tac-toe');
+  const preselectedGame = searchParams.get('game') as GameType | null;
+  const [step, setStep] = useState(preselectedGame ? 2 : 1);
+  const [gameType, setGameType] = useState<GameType>(preselectedGame || 'tic-tac-toe');
   const [stakeAmount, setStakeAmount] = useState(25);
   const [rounds, setRounds] = useState(1);
   const [currency, setCurrency] = useState<'BASE' | 'USDC' | 'USDT'>('USDC');

@@ -12,7 +12,7 @@ export default function PlayGame() {
   const { gameType } = useParams<{ gameType: GameType }>();
   const navigate = useNavigate();
 
-  if (!gameType || !['tic-tac-toe', 'chess', 'scrabble'].includes(gameType)) {
+  if (!gameType || !['tic-tac-toe', 'chess', 'scrabble', 'rock-paper-scissors', 'checkers'].includes(gameType)) {
     return (
       <MobileLayout>
         <div className="flex items-center justify-center min-h-screen px-4">

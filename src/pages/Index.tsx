@@ -19,20 +19,11 @@ import {
 
 const quickGames: { type: GameType; color: string }[] = [
   { type: 'tic-tac-toe', color: 'from-blue-500 to-cyan-400' },
-  { type: 'connect-four', color: 'from-red-500 to-yellow-400' },
   { type: 'rock-paper-scissors', color: 'from-green-500 to-emerald-400' },
-  { type: 'wordle', color: 'from-emerald-500 to-teal-400' },
   { type: 'checkers', color: 'from-red-600 to-rose-400' },
-  { type: 'battleship', color: 'from-slate-500 to-blue-400' },
-  { type: 'trivia', color: 'from-purple-500 to-pink-400' },
   { type: 'chess', color: 'from-gray-600 to-gray-400' },
   { type: 'scrabble', color: 'from-amber-500 to-orange-400' },
-  { type: 'cup-pong', color: 'from-amber-500 to-yellow-400' },
   { type: 'sports-prediction', color: 'from-green-500 to-emerald-400' },
-  { type: 'dots-and-boxes', color: 'from-indigo-500 to-violet-400' },
-  { type: 'boggle', color: 'from-lime-500 to-green-400' },
-  { type: 'pool', color: 'from-emerald-600 to-cyan-400' },
-  { type: 'ping-pong', color: 'from-orange-500 to-red-400' },
 ];
 
 export default function Index() {

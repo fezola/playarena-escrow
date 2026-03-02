@@ -59,21 +59,6 @@ const instructions: Record<GameType, { title: string; rules: string[]; tips: str
       'Block premium squares from your opponent',
     ],
   },
-  'connect-four': {
-    title: 'Connect 4',
-    rules: [
-      'Players take turns dropping colored discs into a 7-column grid',
-      'Discs fall to the lowest available position in each column',
-      'First player to connect 4 discs in a row wins',
-      'Connections can be horizontal, vertical, or diagonal',
-    ],
-    tips: [
-      'Control the center column for more winning opportunities',
-      'Build threats in multiple directions at once',
-      'Block your opponent\'s 3-in-a-row immediately',
-      'Plan several moves ahead',
-    ],
-  },
   'rock-paper-scissors': {
     title: 'Rock Paper Scissors',
     rules: [
@@ -86,22 +71,6 @@ const instructions: Record<GameType, { title: string; rules: string[]; tips: str
       'Watch for patterns in your opponent\'s choices',
       'Mix up your choices to stay unpredictable',
       'Psychology matters - think about what they expect you to play',
-    ],
-  },
-  wordle: {
-    title: 'Wordle',
-    rules: [
-      'Guess the secret 5-letter word in 6 tries or less',
-      'Green = correct letter in correct position',
-      'Yellow = correct letter in wrong position',
-      'Gray = letter not in the word',
-      'Player who guesses in fewer tries wins',
-    ],
-    tips: [
-      'Start with words containing common vowels (A, E, I, O, U)',
-      'Use common consonants like R, S, T, L, N early',
-      'Pay attention to letter positions from previous guesses',
-      'Eliminate letters strategically',
     ],
   },
   checkers: {
@@ -131,91 +100,6 @@ const instructions: Record<GameType, { title: string; rules: string[]; tips: str
       'Avoid creating chains of boxes your opponent can claim',
       'Force opponent to give you chains of boxes',
       'Count ahead to plan optimal moves',
-    ],
-  },
-  boggle: {
-    title: 'Boggle',
-    rules: [
-      'Find words in the 4x4 letter grid',
-      'Words must be 3+ letters and connect adjacently',
-      'Each letter can only be used once per word',
-      'Longer words score more points',
-    ],
-    tips: [
-      'Look for common prefixes and suffixes',
-      'Check all 8 directions for letter connections',
-      'Start with obvious words, then dig deeper',
-    ],
-  },
-  pool: {
-    title: 'Pool / 8-Ball',
-    rules: [
-      'One player is solids (1-7), other is stripes (9-15)',
-      'Pocket all your balls, then sink the 8-ball to win',
-      'Scratching on the 8-ball is an automatic loss',
-      'Call your shots for the 8-ball',
-    ],
-    tips: [
-      'Plan your pattern before shooting',
-      'Use angles and position play',
-      'Play safe when you don\'t have a good shot',
-    ],
-  },
-  'ping-pong': {
-    title: 'Ping Pong',
-    rules: [
-      'Hit the ball over the net to your opponent',
-      'Ball must bounce once on each side',
-      'First to 11 points wins (must win by 2)',
-      'Alternate serves every 2 points',
-    ],
-    tips: [
-      'Vary your spin and placement',
-      'Watch your opponent\'s paddle angle',
-      'Return to ready position after each shot',
-    ],
-  },
-  battleship: {
-    title: 'Battleship',
-    rules: [
-      'Place your fleet of ships on a 10x10 grid',
-      'Take turns calling coordinates to fire at enemy ships',
-      'Hit = you struck a ship, Miss = open water',
-      'Sink all enemy ships to win',
-    ],
-    tips: [
-      'Hunt in patterns to find ships efficiently',
-      'Once you hit, target adjacent cells',
-      'Don\'t cluster your ships together',
-      'Track your hits and misses carefully',
-    ],
-  },
-  trivia: {
-    title: 'Trivia',
-    rules: [
-      'Both players answer the same questions',
-      'You have 15 seconds to answer each question',
-      'Correct answers earn 1 point',
-      'Most points after all questions wins',
-    ],
-    tips: [
-      'Trust your first instinct',
-      'Eliminate obviously wrong answers first',
-      'Don\'t overthink - time is limited',
-    ],
-  },
-  'cup-pong': {
-    title: 'Cup Pong',
-    rules: [
-      'Each player has 6 cups arranged in a triangle',
-      'Take turns throwing a ball at opponent\'s cups',
-      'If you hit a cup, it\'s eliminated and you get another throw',
-      'First to eliminate all opponent cups wins!',
-    ],
-    tips: [
-      'Aim for the front cups first to open up the back',
-      'If you hit, you get another turn - capitalize on streaks!',
-      'Stay calm and focused for consistent throws',
     ],
   },
   'sports-prediction': {
@@ -256,7 +140,6 @@ export function GameInstructions({ gameType }: GameInstructionsProps) {
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Rules */}
           <div>
             <h4 className="font-semibold text-sm text-muted-foreground mb-2">RULES</h4>
             <ul className="space-y-2">
@@ -275,7 +158,6 @@ export function GameInstructions({ gameType }: GameInstructionsProps) {
             </ul>
           </div>
 
-          {/* Tips */}
           <div>
             <h4 className="font-semibold text-sm text-muted-foreground mb-2">PRO TIPS</h4>
             <ul className="space-y-2">
@@ -294,7 +176,6 @@ export function GameInstructions({ gameType }: GameInstructionsProps) {
             </ul>
           </div>
 
-          {/* Responsible Gaming Warning */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
