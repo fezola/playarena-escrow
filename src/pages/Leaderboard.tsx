@@ -9,9 +9,6 @@ import { Trophy, Medal, TrendingUp, Gamepad2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
-import { SkillBadge } from '@/components/SkillBadge';
-import type { RiskTier } from '@/lib/engines/riskEngine';
-
 interface LeaderboardEntry {
   rank: number;
   id: string;
@@ -22,8 +19,6 @@ interface LeaderboardEntry {
   total_losses: number;
   total_earnings: number;
   current_streak: number;
-  skill_score: number;
-  risk_tier: string;
 }
 
 const getRankIcon = (rank: number) => {
@@ -61,7 +56,7 @@ export default function Leaderboard() {
       // Only fetch users who have actually played games (wins + losses > 0)
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, display_name, username, avatar_url, total_wins, total_losses, total_earnings, current_streak, skill_score, risk_tier')
+        .select('id, display_name, username, avatar_url, total_wins, total_losses, total_earnings, current_streak')
         .or('total_wins.gt.0,total_losses.gt.0')
         .order('total_earnings', { ascending: false })
         .order('total_wins', { ascending: false })
@@ -190,7 +185,6 @@ export default function Leaderboard() {
                             🔥 {entry.current_streak}
                           </Badge>
                         )}
-                        <SkillBadge skillScore={entry.skill_score ?? 1000} riskTier={(entry.risk_tier ?? 'standard') as RiskTier} compact />
                       </div>
                     </div>
 

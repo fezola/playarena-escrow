@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { SkillCard } from '@/components/SkillCard';
 // Balance check via RPC call
 import {
   Trophy, Gamepad2, Coins, TrendingUp, History,
@@ -574,18 +573,6 @@ export default function Profile() {
       </div>
 
       <main className="px-4 space-y-4 -mt-2">
-        {/* Skill Rating Card */}
-        {profile && (
-          <SkillCard
-            skillScore={(profile as any).skill_score ?? 1000}
-            winRate={(profile as any).win_rate ?? 0}
-            volatilityScore={(profile as any).volatility_score ?? 0.5}
-            consistencyIndex={(profile as any).consistency_index ?? 0.5}
-            riskTier={((profile as any).risk_tier ?? 'standard') as any}
-            totalMatches={(profile as any).total_matches_played ?? 0}
-          />
-        )}
-
         {/* Wallet Section */}
         <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
           <CardContent className="p-4">
